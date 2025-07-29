@@ -21,7 +21,7 @@ public class AccountController : ControllerBase
     /// <remarks>
     /// ID счёта генерируется автоматически на сервере.
     /// Пример запроса:
-    ///
+    /// 
     ///     POST /accounts
     ///     {
     ///        "ownerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -29,7 +29,12 @@ public class AccountController : ControllerBase
     ///        "currency": "RUB",
     ///        "interestRate": null // или, например, 3.5 для вклада
     ///     }
-    ///
+    /// 
+    /// Правила валидации:
+    /// - ownerId: обязательное поле, должен быть валидным GUID
+    /// - accountType: обязательное поле, допустимые значения: Checking, Deposit, Credit
+    /// - currency: обязательное поле, должен быть валидным кодом валюты ISO 4217
+    /// - interestRate: опционально, но если указано, должно быть >= 0
     /// </remarks>
     /// <param name="command">Данные для создания счёта.</param>
     /// <returns>Информация о созданном счёте.</returns>

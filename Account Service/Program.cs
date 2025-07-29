@@ -13,13 +13,23 @@ builder.Services.AddAutoMapper(cfg => { },
     typeof(Program));
 //swagger
 builder.Services.AddOpenApi();
-builder.Services.AddSwaggerGen(options => options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+builder.Services.AddSwaggerGen(options =>
 {
-    Version = "v1",
-    Title = "Account Service API",
-    Description =
-        "Микросервис для управления банковскими счетами и транзакциями в соответствии с заданием Модуль Банка."
-}));
+    
+    //включаем отображение комментариев в интерфейсе swagger
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    options.IncludeXmlComments(xmlPath);
+    
+    
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Version = "v1",
+        Title = "Account Service API",
+        Description =
+            "Микросервис для управления банковскими счетами и транзакциями в соответствии с заданием Модуль Банка."
+    });
+});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
