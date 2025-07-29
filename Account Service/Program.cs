@@ -1,9 +1,17 @@
+using System.Reflection;
+using System.Text.Json.Serialization;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    // сериализация enum в строку
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+//automapper
+builder.Services.AddAutoMapper(cfg => { },
+    typeof(Program));
+//swagger
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen(options => options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
 {
