@@ -1,37 +1,45 @@
 using System.Reflection;
 using System.Text.Json.Serialization;
+using AccountService.Core.Behaviors;
 using AccountService.Filters;
 using AccountService.Infrastructure.Persistence;
+using AccountService.Infrastructure.Verification;
+using FluentValidation;
+using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. Конфигурация сервисов (Dependency Injection)
 
-//фильтр для обработки исключений
+// Добавляем контроллеры и настраиваем глобальные фильтры и JSON
 builder.Services.AddControllers(options => { options.Filters.Add<ApiExceptionFilter>(); })
     .AddJsonOptions(options =>
     {
-        // сериализация enum в строку
+        // Сериализация enum в строку
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-//acc repository
+// Регистрируем сервисы-заглушки
+builder.Services.AddSingleton<IClientVerificationService, StubClientVerificationService>();
+builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
 builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
-//automapper
-builder.Services.AddAutoMapper(cfg => { },
-    typeof(Program));
-//mediatr
+
+// Регистрируем FluentValidation и все валидаторы из сборки
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+
+// Регистрируем AutoMapper и все профили из сборки
+builder.Services.AddAutoMapper(cfg => { }, typeof(Program));
+
+// Регистрируем MediatR и все его компоненты из сборки
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
-//swagger
-builder.Services.AddOpenApi();
+// Использовать для любого IPipelineBehavior<TRequest, TResponse> ValidationBehavior
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// Настраиваем Swagger (Swashbuckle)
+builder.Services.AddEndpointsApiExplorer(); // Необходимо для Swagger
 builder.Services.AddSwaggerGen(options =>
 {
-    //включаем отображение комментариев в интерфейсе swagger
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    options.IncludeXmlComments(xmlPath);
-
-
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
         Version = "v1",
@@ -39,15 +47,33 @@ builder.Services.AddSwaggerGen(options =>
         Description =
             "Микросервис для управления банковскими счетами и транзакциями в соответствии с заданием Модуль Банка."
     });
+
+    // Включаем отображение комментариев в интерфейсе Swagger
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
 });
+
+// 2. Построение приложения
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-app.UseSwaggerUI();
-app.UseSwagger();
-app.MapOpenApi();
+// 3. Конфигурация конвейера обработки HTTP-запросов (Middleware)
 
+// Включаем Swagger только в режиме разработки для безопасности
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
 
-app.MapControllers();
+    app.UseSwaggerUI(options =>
+    {
+        // Чтобы Swagger UI открывался по корневому URL (http://localhost:xxxx/)
+        options.RoutePrefix = string.Empty;
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Account Service API V1");
+    });
+}
 
-app.Run();
+app.UseHttpsRedirection(); // Перенаправляет HTTP на HTTPS
+
+app.MapControllers(); // Сопоставляет запросы с методами контроллеров
+
+app.Run(); // Запускает приложение
