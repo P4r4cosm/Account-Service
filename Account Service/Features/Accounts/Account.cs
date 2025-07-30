@@ -1,4 +1,4 @@
-namespace BankAccounts.Features.Accounts;
+namespace AccountService.Features.Accounts;
 
 public class Account
 {

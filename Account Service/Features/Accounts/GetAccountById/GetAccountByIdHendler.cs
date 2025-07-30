@@ -1,8 +1,8 @@
+using AccountService.Infrastructure.Persistence;
 using AutoMapper;
-using BankAccounts.Infrastructure.Persistence;
 using MediatR;
 
-namespace BankAccounts.Features.Accounts.GetAccountById;
+namespace AccountService.Features.Accounts.GetAccountById;
 
 public class GetAccountByIdHendler : IRequestHandler<GetAccountByIdQuery, AccountDto?>
 {

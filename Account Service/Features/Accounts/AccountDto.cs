@@ -1,14 +1,15 @@
-namespace BankAccounts.Features.Accounts;
+namespace AccountService.Features.Accounts;
 
 /// <summary>
 /// Объект для передачи данных о счёте клиенту.
 /// </summary>
-public record AccountDto(
-    Guid Id,
-    Guid OwnerId,
-    string AccountType,
-    string Currency, // <-- Вы были абсолютно правы, он здесь нужен!
-    decimal Balance,
-    decimal? InterestRate, // <-- Тоже полезно вернуть
-    DateTime OpenedDate
-);
+public class AccountDto
+{
+    public Guid Id { get; set; }
+    public Guid OwnerId{ get; set; }
+    public string AccountType{ get; set; }
+    public string Currency{ get; set; }
+    public decimal Balance{ get; set; }
+    public decimal? InterestRate{ get; set; }
+    public DateTime OpenedDate{ get; set; }
+};

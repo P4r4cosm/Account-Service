@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace BankAccounts.Features.Accounts.CreateAccount;
+namespace AccountService.Features.Accounts.CreateAccount;
 
 public record CreateAccountCommand(
     Guid OwnerId,

@@ -1,6 +1,6 @@
-using BankAccounts.Features.Accounts;
+using AccountService.Features.Accounts;
 
-namespace BankAccounts.Infrastructure.Persistence;
+namespace AccountService.Infrastructure.Persistence;
 
 public class InMemoryAccountRepository: IAccountRepository
 {
@@ -19,6 +19,12 @@ public class InMemoryAccountRepository: IAccountRepository
     public Task AddAsync(Account account, CancellationToken cancellationToken)
     {
         _accounts.Add(account);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(Account account, CancellationToken cancellationToken)
+    {
+        _accounts.Remove(account);
         return Task.CompletedTask;
     }
 }

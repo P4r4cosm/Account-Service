@@ -1,9 +1,12 @@
-using BankAccounts.Features.Accounts.CreateAccount;
-using BankAccounts.Features.Accounts.GetAccountById;
+using AccountService.Domain.Exceptions;
+using AccountService.Features.Accounts.CreateAccount;
+using AccountService.Features.Accounts.DeleteAccount;
+using AccountService.Features.Accounts.GetAccountById;
+using AccountService.Features.Accounts.GetAccounts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BankAccounts.Features.Accounts;
+namespace AccountService.Features.Accounts;
 
 [Route("api/[controller]")]
 public class AccountController : ControllerBase
@@ -48,7 +51,7 @@ public class AccountController : ControllerBase
         //отправляем команду в mediator
         var createdAccountDto = await _mediator.Send(command);
         // CreatedAtAction генерирует URL для получения только что созданного ресурса.
-        return CreatedAtAction(nameof(GetAccountById), 
+        return CreatedAtAction(nameof(GetAccountById),
             new { accountId = createdAccountDto.Id }, createdAccountDto);
     }
 
@@ -73,5 +76,39 @@ public class AccountController : ControllerBase
         // 3. Проверяем результат и возвращаем либо 200 OK, либо 404 Not Found.
         return resultDto is not null ? Ok(resultDto) : NotFound();
     }
-    
+
+    /// <summary>
+    /// Получает список всех банковских счетов.
+    /// </summary>
+    /// <returns>Коллекция с краткой информацией о счетах.</returns>
+    /// <response code="200">Возвращает список счетов. Список может быть пустым.</response>
+    [HttpGet("accounts")]
+    [ProducesResponseType(typeof(IEnumerable<AccountDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAccounts()
+    {
+        var query = new GetAllAccountsQuery();
+        var resultDto = await _mediator.Send(query);
+        return resultDto is not null ? Ok(resultDto) : NotFound();
+    }
+
+
+    /// <summary>
+    /// Удаляет существующий банковский счёт.
+    /// </summary>
+    /// <param name="accountId">Идентификатор удаляемого счёта (GUID).</param>
+    /// <response code="204">Счёт успешно удалён.</response>
+    /// <response code="404">Счёт с указанным ID не найден.</response>
+    [HttpDelete("{accountId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteAccount([FromRoute] Guid accountId)
+    {
+        var command = new DeleteAccountCommand(accountId);
+
+        await _mediator.Send(command); // Отправляем команду
+
+        // Если команда успешно выполнена (т.е. не бросила исключение),
+        // возвращаем 204 No Content.
+        return NoContent();
+    }
 }

@@ -1,4 +1,4 @@
-namespace BankAccounts.Features.Transactions;
+namespace AccountService.Features.Transactions;
 
 /// <summary>
 /// Тип финансовой транзакции.

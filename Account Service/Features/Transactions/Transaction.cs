@@ -1,4 +1,4 @@
-namespace BankAccounts.Features.Transactions;
+namespace AccountService.Features.Transactions;
 
 public class Transaction
 {

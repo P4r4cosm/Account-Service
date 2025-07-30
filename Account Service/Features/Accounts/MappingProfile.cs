@@ -1,7 +1,7 @@
+using AccountService.Features.Accounts.CreateAccount;
 using AutoMapper;
-using BankAccounts.Features.Accounts.CreateAccount;
 
-namespace BankAccounts.Features.Accounts;
+namespace AccountService.Features.Accounts;
 
 public class MappingProfile: Profile
 {

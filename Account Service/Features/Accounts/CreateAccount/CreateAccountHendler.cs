@@ -1,7 +1,7 @@
+using AccountService.Infrastructure.Persistence;
 using AutoMapper;
-using BankAccounts.Infrastructure.Persistence;
 using MediatR;
-namespace BankAccounts.Features.Accounts.CreateAccount;
+namespace AccountService.Features.Accounts.CreateAccount;
 
 public class CreateAccountHendler: IRequestHandler<CreateAccountCommand, AccountDto>
 {
