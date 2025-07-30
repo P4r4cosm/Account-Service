@@ -9,27 +9,27 @@ public class PagedResult<T>
     /// <summary>
     /// Элементы на текущей странице.
     /// </summary>
-    public IEnumerable<T> Items { get; }
+    public IEnumerable<T> Items { get; private set; }
 
     /// <summary>
     /// Общее количество элементов во всем списке (после применения фильтров).
     /// </summary>
-    public int TotalCount { get; }
+    public int TotalCount { get; private set; }
 
     /// <summary>
     /// Номер текущей страницы (начиная с 1).
     /// </summary>
-    public int PageNumber { get; }
+    public int PageNumber { get; private set; }
 
     /// <summary>
     /// Размер страницы (количество запрошенных элементов).
     /// </summary>
-    public int PageSize { get; }
+    public int PageSize { get; private set; }
 
     /// <summary>
     /// Общее количество страниц.
     /// </summary>
-    public int TotalPages { get; }
+    public int TotalPages { get; private set; }
 
     /// <summary>
     /// Указывает, существует ли предыдущая страница.
@@ -43,7 +43,7 @@ public class PagedResult<T>
 
     public PagedResult(IEnumerable<T> items, int totalCount, int pageNumber, int pageSize)
     {
-        Items = items;
+        Items = items ?? throw new ArgumentNullException(nameof(items));
         TotalCount = totalCount;
         PageNumber = pageNumber;
         PageSize = pageSize;

@@ -33,4 +33,14 @@ public class InMemoryAccountRepository: IAccountRepository
         var hasAccounts= _accounts.Any(x => x.OwnerId == ownerId);
         return Task.FromResult(hasAccounts);
     }
+    public Task UpdateAsync(Account account, CancellationToken cancellationToken)
+    {
+        var index = _accounts.FindIndex(a => a.Id == account.Id);
+        
+        if (index != -1)
+        {
+            _accounts[index] = account;
+        }
+        return Task.CompletedTask;
+    }
 }

@@ -28,7 +28,10 @@ public class ApiExceptionFilter:  IExceptionFilter
                 var errors = ex.Errors.Select(err => new { property = err.PropertyName, message = err.ErrorMessage });
                 context.Result = new BadRequestObjectResult(new { errors });
                 break;
-            
+            case OperationNotAllowedException ex:
+                _logger.LogError(ex.Message);
+                context.Result = new BadRequestObjectResult(new { error = ex.Message });
+                break;
             default:
                 _logger.LogError(context.Exception, context.Exception.Message);
                 // И возвращаем клиенту стандартизированный ответ 500

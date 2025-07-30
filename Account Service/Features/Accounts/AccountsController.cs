@@ -1,3 +1,4 @@
+using AccountService.Core.Domain;
 using AccountService.Domain.Exceptions;
 using AccountService.Features.Accounts.CheckOwnerHasAccounts;
 using AccountService.Features.Accounts.CreateAccount;
@@ -5,6 +6,7 @@ using AccountService.Features.Accounts.DeleteAccount;
 using AccountService.Features.Accounts.GetAccountById;
 using AccountService.Features.Accounts.GetAccountById.GetAccountField;
 using AccountService.Features.Accounts.GetAccounts;
+using AccountService.Features.Accounts.UpdateAccount;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -115,7 +117,7 @@ public class AccountsController : ControllerBase
     /// <response code="200">Запрос выполнен успешно. Возвращает объект с данными и метаинформацией о пагинации. Поле `items` может быть пустым, если по заданным фильтрам ничего не найдено.</response>
     /// <response code="400">Некорректные параметры запроса. Это может произойти, если, например, номер страницы меньше 1. Тело ответа будет содержать информацию об ошибках валидации.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<AccountDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<AccountDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAccounts([FromQuery] GetAccountsQuery query)
     {
         var resultDto = await _mediator.Send(query);
@@ -157,6 +159,39 @@ public class AccountsController : ControllerBase
         var query = new CheckOwnerHasAccountsQuery(ownerId);
         var result = await _mediator.Send(query);
         return Ok(result);
+    }
+    
+    /// <summary>
+    /// Полностью обновляет данные счёта (идемпотентная операция).
+    /// </summary>
+    /// <remarks>
+    /// Этот метод заменяет все изменяемые данные счёта на те, что переданы в теле запроса.
+    /// Неизменяемые поля (ID, баланс, дата открытия и т.д.) игнорируются.
+    /// 
+    /// Пример запроса:
+    /// 
+    ///     PUT /api/accounts/3fa85f64-5717-4562-b3fc-2c963f66afa6
+    ///     {
+    ///         "ownerId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    ///         "interestRate": 4.2
+    ///     }
+    /// 
+    /// </remarks>
+    /// <param name="accountId">ID счёта для обновления.</param>
+    /// <param name="command">Данные для обновления.</param>
+    /// <response code="204">Данные счёта успешно обновлены.</response>
+    /// <response code="400">Некорректные данные в запросе (ошибка валидации).</response>
+    /// <response code="404">Счёт с указанным ID не найден.</response>
+    [HttpPut("{accountId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateAccount([FromRoute] Guid accountId, [FromBody] UpdateAccountCommand command)
+    {
+        // Устанавливаем ID из маршрута в команду, чтобы они были синхронизированы
+        command.AccountId = accountId;
+        await _mediator.Send(command);
+        return NoContent();
     }
     
 }

@@ -11,4 +11,6 @@ public interface IAccountRepository
 
     Task<bool> OwnerHasAccountsAsync(Guid ownerId, CancellationToken cancellationToken);
     
+    Task UpdateAsync(Account account, CancellationToken cancellationToken);
+    
 }

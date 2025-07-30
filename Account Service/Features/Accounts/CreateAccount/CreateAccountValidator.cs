@@ -11,12 +11,11 @@ public class CreateAccountValidator: AbstractValidator<CreateAccountCommand>
     {
         _currencyService = currencyService;
         RuleFor(x => x.OwnerId).NotEmpty();
+        
         //проверка валюты
         RuleFor(x => x.Currency)
-            .NotEmpty()
-            .Length(3)
-            .MustAsync(BeASupportedCurrency)
-            .WithMessage("Указанная валюта не поддерживается.");
+            .MustBeValidCurrency(_currencyService)
+            .When(x => !string.IsNullOrEmpty(x.Currency));
         
         // проверка счёта
         RuleFor(x => x.AccountType)
@@ -29,14 +28,4 @@ public class CreateAccountValidator: AbstractValidator<CreateAccountCommand>
             .When(x => x.AccountType == nameof(AccountType.Deposit) || x.AccountType == nameof(AccountType.Credit), ApplyConditionTo.CurrentValidator)
             .WithMessage("Процентная ставка обязательна для вкладов и кредитов.");
     }
-    
-    /// <summary>
-    /// Метод для асинхронной валидации через наш сервис.
-    /// </summary>
-    private async Task<bool> BeASupportedCurrency(string currencyCode, CancellationToken cancellationToken)
-    {
-        return await _currencyService.IsSupportedAsync(currencyCode, cancellationToken);
-    }
-
-  
 }
