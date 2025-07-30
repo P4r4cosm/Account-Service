@@ -7,7 +7,7 @@ public class Account
     public AccountType AccountType { get; set; }
     public string Currency{get;set;}
     public decimal Balance{get;set;}
-    public decimal? InterestRage { get; set; }
+    public decimal? InterestRate { get; set; }
     public DateTime OpenedDate {get;set;}
-    public DateTime? CloseDate {get;set;}
+    public DateTime? ClosedDate {get;set;}
 }

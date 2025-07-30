@@ -3,6 +3,7 @@ using AccountService.Features.Accounts.CheckOwnerHasAccounts;
 using AccountService.Features.Accounts.CreateAccount;
 using AccountService.Features.Accounts.DeleteAccount;
 using AccountService.Features.Accounts.GetAccountById;
+using AccountService.Features.Accounts.GetAccountById.GetAccountField;
 using AccountService.Features.Accounts.GetAccounts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -75,7 +76,26 @@ public class AccountsController : ControllerBase
         var resultDto = await _mediator.Send(query);
 
         // 3. Проверяем результат и возвращаем либо 200 OK, либо 404 Not Found.
-        return resultDto is not null ? Ok(resultDto) : NotFound();
+        return resultDto is not null ? Ok(resultDto) : NotFound("Account not found");
+    }
+    
+    /// <summary>
+    /// Получает значение конкретного поля счёта.
+    /// </summary>
+    /// <param name="accountId">ID счёта.</param>
+    /// <param name="fieldName">Имя поля (например, "balance", "currency", "ownerId"). Регистронезависимое.</param>
+    /// <returns>Значение запрошенного поля.</returns>
+    /// <response code="200">Возвращает значение поля. Может быть null, если поле не найдено или его значение null.</response>
+    /// <response code="404">Счёт с указанным ID не найден.</response>
+    [HttpGet("{accountId:guid}/{fieldName}")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAccountField([FromRoute] Guid accountId, [FromRoute] string fieldName)
+    {
+        var query = new GetAccountFieldQuery(accountId, fieldName);
+        var result = await _mediator.Send(query);
+        
+        return result is not null ? Ok(result) : NotFound("Field not found");
     }
 
     /// <summary>
@@ -84,7 +104,7 @@ public class AccountsController : ControllerBase
     /// <remarks>
     /// Этот метод позволяет получить список счетов с применением гибких фильтров и пагинации.
     /// 
-    /// **Пример запроса для получения первой страницы (20 счетов) в рублях с балансом от 1000:**
+    /// Пример запроса для получения первой страницы (20 счетов) в рублях с балансом от 1000:
     /// 
     ///     GET /api/accounts?PageNumber=1&PageSize=20&Currency=RUB&Balance_gte=1000
     /// 
