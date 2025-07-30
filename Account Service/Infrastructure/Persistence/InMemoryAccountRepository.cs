@@ -11,9 +11,9 @@ public class InMemoryAccountRepository: IAccountRepository
         return Task.FromResult(account);
     }
 
-    public Task<List<Account>> GetAllAsync(CancellationToken cancellationToken)
+    public Task<IEnumerable<Account>> GetAllAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult(_accounts);
+        return Task.FromResult<IEnumerable<Account>>(_accounts);
     }
 
     public Task AddAsync(Account account, CancellationToken cancellationToken)
@@ -26,5 +26,11 @@ public class InMemoryAccountRepository: IAccountRepository
     {
         _accounts.Remove(account);
         return Task.CompletedTask;
+    }
+
+    public Task<bool> OwnerHasAccountsAsync(Guid ownerId, CancellationToken cancellationToken)
+    {
+        var hasAccounts= _accounts.Any(x => x.OwnerId == ownerId);
+        return Task.FromResult(hasAccounts);
     }
 }

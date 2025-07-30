@@ -1,3 +1,4 @@
+using AccountService.Core.Validation;
 using AccountService.Infrastructure.Verification;
 using FluentValidation;
 
@@ -16,12 +17,11 @@ public class CreateAccountValidator: AbstractValidator<CreateAccountCommand>
             .Length(3)
             .MustAsync(BeASupportedCurrency)
             .WithMessage("Указанная валюта не поддерживается.");
-
-
+        
+        // проверка счёта
         RuleFor(x => x.AccountType)
-            .NotEmpty().WithMessage("Тип счёта не может быть пустым.")
-            .Must(BeAValidAccountType)
-            .WithMessage("Указан некорректный тип счёта. Допустимые значения: Checking, Deposit, Credit.");
+            .MustBeValidAccountType()
+            .When(x => !string.IsNullOrEmpty(x.AccountType));
 
         // Процентная ставка обязательна только для вкладов или кредитов
         RuleFor(x => x.InterestRate)
@@ -37,12 +37,6 @@ public class CreateAccountValidator: AbstractValidator<CreateAccountCommand>
     {
         return await _currencyService.IsSupportedAsync(currencyCode, cancellationToken);
     }
-    
-    // Вспомогательный метод для проверки, является ли строка валидным значением enum
-    private bool BeAValidAccountType(string accountType)
-    {
-        // Enum.TryParse вернет true, если строка (с игнорированием регистра)
-        // может быть успешно преобразована в значение AccountType.
-        return Enum.TryParse<AccountType>(accountType, ignoreCase: true, out _);
-    }
+
+  
 }

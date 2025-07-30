@@ -1,4 +1,5 @@
 using AccountService.Domain.Exceptions;
+using AccountService.Features.Accounts.CheckOwnerHasAccounts;
 using AccountService.Features.Accounts.CreateAccount;
 using AccountService.Features.Accounts.DeleteAccount;
 using AccountService.Features.Accounts.GetAccountById;
@@ -9,11 +10,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace AccountService.Features.Accounts;
 
 [Route("api/[controller]")]
-public class AccountController : ControllerBase
+public class AccountsController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public AccountController(IMediator mediator)
+    public AccountsController(IMediator mediator)
     {
         _mediator = mediator;
     }
@@ -78,17 +79,27 @@ public class AccountController : ControllerBase
     }
 
     /// <summary>
-    /// Получает список всех банковских счетов.
+    /// Получает постраничный список банковских счетов с фильтрацией.
     /// </summary>
-    /// <returns>Коллекция с краткой информацией о счетах.</returns>
-    /// <response code="200">Возвращает список счетов. Список может быть пустым.</response>
-    [HttpGet("accounts")]
+    /// <remarks>
+    /// Этот метод позволяет получить список счетов с применением гибких фильтров и пагинации.
+    /// 
+    /// **Пример запроса для получения первой страницы (20 счетов) в рублях с балансом от 1000:**
+    /// 
+    ///     GET /api/accounts?PageNumber=1&PageSize=20&Currency=RUB&Balance_gte=1000
+    /// 
+    /// В ответе вы получите объект, содержащий список счетов (`items`) и метаданные пагинации (`totalCount`, `pageNumber`, `totalPages` и т.д.).
+    /// </remarks>
+    /// <param name="query">Объект с параметрами для фильтрации и пагинации. Все параметры опциональны.</param>
+    /// <returns>Постраничный результат со списком счетов (`PagedResult<AccountDto>`).</returns>
+    /// <response code="200">Запрос выполнен успешно. Возвращает объект с данными и метаинформацией о пагинации. Поле `items` может быть пустым, если по заданным фильтрам ничего не найдено.</response>
+    /// <response code="400">Некорректные параметры запроса. Это может произойти, если, например, номер страницы меньше 1. Тело ответа будет содержать информацию об ошибках валидации.</response>
+    [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<AccountDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAccounts()
+    public async Task<IActionResult> GetAccounts([FromQuery] GetAccountsQuery query)
     {
-        var query = new GetAllAccountsQuery();
         var resultDto = await _mediator.Send(query);
-        return resultDto is not null ? Ok(resultDto) : NotFound();
+        return Ok(resultDto);
     }
 
 
@@ -111,4 +122,21 @@ public class AccountController : ControllerBase
         // возвращаем 204 No Content.
         return NoContent();
     }
+
+
+    /// <summary>
+    /// Проверяет наличие хотя бы одного счёта у клиента.
+    /// </summary>
+    /// <param name="ownerId">ID проверяемого клиента.</param>
+    /// <returns>True, если у клиента есть счета, иначе false.</returns>
+    /// <response code="200">Возвращает логическое значение.</response>
+    [HttpGet("{ownerId:guid}/has-accounts")]
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+    public async Task<IActionResult> HasAccounts([FromRoute] Guid ownerId)
+    {
+        var query = new CheckOwnerHasAccountsQuery(ownerId);
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+    
 }
