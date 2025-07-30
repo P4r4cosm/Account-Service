@@ -26,6 +26,7 @@ public class CreateAccountHendler: IRequestHandler<CreateAccountCommand, Account
             // Бросаем исключение, которое будет поймано глобальным фильтром и превращено в 400/404.
             throw new NotFoundException($"Клиент с ID '{request.OwnerId}' не найден.");
         }
+ 
         //создаём account с помощью automapper
         var account = _mapper.Map<Account>(request);
         //изменяем необходимые поля
