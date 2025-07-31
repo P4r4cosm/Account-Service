@@ -32,9 +32,9 @@ public class UpdateAccountHandler: IRequestHandler<UpdateAccountCommand, Unit>
         }
         
         // Ставку можно менять только у вкладов и кредитов
-        if (account.AccountType is AccountType.Checking)
+        if (request.InterestRate is not null && account.AccountType is AccountType.Checking)
         {
-            throw new OperationNotAllowedException("Изменение процентной ставки доступно только для вкладов и кредитов.");
+            throw new OperationNotAllowedException("Установка процентной ставки невозможна для текущих счетов.");
         }
         
         account.OwnerId = request.OwnerId;

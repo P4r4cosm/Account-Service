@@ -1,11 +1,11 @@
 using AccountService.Core.Domain;
-using AccountService.Domain.Exceptions;
 using AccountService.Features.Accounts.CheckOwnerHasAccounts;
 using AccountService.Features.Accounts.CreateAccount;
 using AccountService.Features.Accounts.DeleteAccount;
 using AccountService.Features.Accounts.GetAccountById;
 using AccountService.Features.Accounts.GetAccountById.GetAccountField;
 using AccountService.Features.Accounts.GetAccounts;
+using AccountService.Features.Accounts.PatchAccount;
 using AccountService.Features.Accounts.UpdateAccount;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -14,11 +14,11 @@ namespace AccountService.Features.Accounts;
 
 
 [ApiController]
+[Produces("application/json")]
 [Route("api/[controller]")]
 public class AccountsController : ControllerBase
 {
     private readonly IMediator _mediator;
-
     public AccountsController(IMediator mediator)
     {
         _mediator = mediator;
@@ -147,7 +147,7 @@ public class AccountsController : ControllerBase
 
         await _mediator.Send(command); // Отправляем команду
 
-        // Если команда успешно выполнена (т.е. не бросила исключение),
+        // Если команда успешно выполнена (не бросила исключение),
         // возвращаем 204 No Content.
         return NoContent();
     }
@@ -197,6 +197,37 @@ public class AccountsController : ControllerBase
     {
         // Устанавливаем ID из маршрута в команду, чтобы они были синхронизированы
         command.AccountId = accountId;
+        await _mediator.Send(command);
+        return NoContent();
+    }
+    
+    
+    /// <summary>
+    /// Частично обновляет данные счёта.
+    /// </summary>
+    /// <remarks>
+    /// Этот метод позволяет обновить одно или несколько полей счёта.
+    /// Передавайте в теле запроса только те поля, которые необходимо изменить.
+    ///
+    /// Пример запроса на смену владельца:
+    ///
+    ///     PATCH /api/accounts/3fa85f64-5717-4562-b3fc-2c963f66afa6
+    ///     {
+    ///        "ownerId": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+    ///     }
+    /// </remarks>
+    /// <param name="accountId">ID счёта для обновления.</param>
+    /// <param name="command">Данные для обновления.</param>
+    /// <response code="204">Данные счёта успешно обновлены.</response>
+    /// <response code="400">Некорректные данные в запросе (ошибка валидации).</response>
+    /// <response code="404">Счёт или новый владелец не найден.</response>
+    [HttpPatch("{accountId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PatchAccount([FromRoute] Guid accountId, [FromBody] PatchAccountCommand command)
+    {
+        command.AccountId = accountId; // Устанавливаем ID из маршрута
         await _mediator.Send(command);
         return NoContent();
     }
