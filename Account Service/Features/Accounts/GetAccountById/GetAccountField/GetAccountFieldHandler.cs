@@ -29,7 +29,7 @@ public class GetAccountFieldHandler : IRequestHandler<GetAccountFieldQuery, obje
             "balance" => account.Balance,
             "interestrate" => account.InterestRate,
             "openeddate" => account.OpenedDate,
-            "closeddate" => account.ClosedDate,
+            "closeddate" => account.CloseDate,
             _ => null // Если поле не найдено или не разрешено к просмотру, возвращаем null
         };
     }

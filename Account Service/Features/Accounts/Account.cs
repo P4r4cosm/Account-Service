@@ -1,3 +1,5 @@
+using AccountService.Features.Transactions;
+
 namespace AccountService.Features.Accounts;
 
 public class Account
@@ -9,5 +11,10 @@ public class Account
     public decimal Balance{get;set;}
     public decimal? InterestRate { get; set; }
     public DateTime OpenedDate {get;set;}
-    public DateTime? ClosedDate {get;set;}
+    public DateTime? CloseDate {get;set;}
+    
+    /// <summary>
+    /// Коллекция всех транзакций, проведённых по этому счёту.
+    /// </summary>
+    public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 }

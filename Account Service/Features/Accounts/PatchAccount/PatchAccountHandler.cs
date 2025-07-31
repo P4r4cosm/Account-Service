@@ -56,7 +56,7 @@ public class PatchAccountHandler : IRequestHandler<PatchAccountCommand, Unit>
             {
                 throw new ValidationException("Дата закрытия не может быть раньше даты открытия.");
             }
-            account.ClosedDate = request.CloseDate;
+            account.CloseDate = request.CloseDate;
             hasChanges = true;
         }
 
