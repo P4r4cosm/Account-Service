@@ -50,11 +50,6 @@ public class GetAccountsQuery : IRequest<PagedResult<AccountDto>>
     /// <example>2025-07-29</example>
     public DateTime? OpeningDate_to { get; set; }
     
-    // --- Новые параметры для пагинации ---
-    
-    private const int MaxPageSize = 100; // Устанавливаем лимит, чтобы клиент не мог запросить миллион записей
-    private int _pageSize = 10; // Значение по умолчанию
-
     /// <summary>
     /// Номер страницы (начиная с 1).
     /// </summary>
@@ -62,12 +57,8 @@ public class GetAccountsQuery : IRequest<PagedResult<AccountDto>>
     public int PageNumber { get; set; } = 1;
 
     /// <summary>
-    /// Размер страницы (количество элементов). Не может превышать 100.
+    /// Размер страницы (количество элементов).
     /// </summary>
     /// <example>20</example>
-    public int PageSize
-    {
-        get => _pageSize;
-        set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
-    }
+    public int PageSize { get; set; } = 10; // Значение по умолчанию
 }

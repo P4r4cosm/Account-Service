@@ -8,6 +8,8 @@ public class GetAccountsValidator : AbstractValidator<GetAccountsQuery>
 {
 
     private readonly ICurrencyService _currencyService;
+    // макс. размер страницы
+    private const int MaxPageSize = 100;
     
     private readonly IReadOnlyCollection<string> _validAccountTypes =
         Enum.GetNames(typeof(AccountType)).ToList().AsReadOnly();
@@ -23,13 +25,11 @@ public class GetAccountsValidator : AbstractValidator<GetAccountsQuery>
             .MustBeValidCurrency(_currencyService)
             .When(x => !string.IsNullOrEmpty(x.Currency));
         
-        
         RuleFor(x => x.PageNumber)
-            .GreaterThanOrEqualTo(1)
-            .WithMessage("Номер страницы должен быть больше или равен 1.");
+            .GreaterThanOrEqualTo(1).WithMessage("Номер страницы должен быть не меньше 1.");
 
         RuleFor(x => x.PageSize)
-            .GreaterThanOrEqualTo(1)
-            .WithMessage("Размер страницы должен быть больше или равен 1.");
+            .GreaterThanOrEqualTo(1).WithMessage("Размер страницы должен быть не меньше 1.")
+            .LessThanOrEqualTo(MaxPageSize).WithMessage($"Размер страницы не может превышать {MaxPageSize}.");
     }
 }

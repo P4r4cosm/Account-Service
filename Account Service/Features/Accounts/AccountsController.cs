@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AccountService.Features.Accounts;
 
+
+[ApiController]
 [Route("api/[controller]")]
 public class AccountsController : ControllerBase
 {
@@ -29,7 +31,7 @@ public class AccountsController : ControllerBase
     /// ID счёта генерируется автоматически на сервере.
     /// Пример запроса:
     /// 
-    ///     POST /accounts
+    ///     POST /api/accounts
     ///     {
     ///        "ownerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     ///        "accountType": "Checking", // или "Deposit", "Credit"
@@ -108,16 +110,21 @@ public class AccountsController : ControllerBase
     /// 
     /// Пример запроса для получения первой страницы (20 счетов) в рублях с балансом от 1000:
     /// 
-    ///     GET /api/accounts?PageNumber=1&PageSize=20&Currency=RUB&Balance_gte=1000
+    /// <code>
+    /// <![CDATA[
+    /// GET /api/accounts?PageNumber=1&PageSize=20&Currency=RUB&Balance_gte=1000
+    /// ]]>
+    /// </code>
     /// 
     /// В ответе вы получите объект, содержащий список счетов (`items`) и метаданные пагинации (`totalCount`, `pageNumber`, `totalPages` и т.д.).
     /// </remarks>
     /// <param name="query">Объект с параметрами для фильтрации и пагинации. Все параметры опциональны.</param>
-    /// <returns>Постраничный результат со списком счетов (`PagedResult<AccountDto>`).</returns>
+    /// <returns>Постраничный результат со списком счетов (`PagedResult<AccountDto/>`).</returns>
     /// <response code="200">Запрос выполнен успешно. Возвращает объект с данными и метаинформацией о пагинации. Поле `items` может быть пустым, если по заданным фильтрам ничего не найдено.</response>
     /// <response code="400">Некорректные параметры запроса. Это может произойти, если, например, номер страницы меньше 1. Тело ответа будет содержать информацию об ошибках валидации.</response>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<AccountDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetAccounts([FromQuery] GetAccountsQuery query)
     {
         var resultDto = await _mediator.Send(query);
