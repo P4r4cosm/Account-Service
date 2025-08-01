@@ -39,7 +39,7 @@ public class UpdateAccountHandler: IRequestHandler<UpdateAccountCommand, Unit>
         // Проверяем бизнес-правило: дата закрытия
         if (request.CloseDate.HasValue && request.CloseDate.Value < account.OpenedDate)
         {
-            throw new ValidationException("Дата закрытия не может быть раньше даты открытия.");
+            throw new OperationNotAllowedException("Дата закрытия не может быть раньше даты открытия.");
         }
 
         account.OwnerId = request.OwnerId;

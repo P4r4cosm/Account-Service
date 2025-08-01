@@ -78,9 +78,8 @@ public class AccountsController : ControllerBase
 
         // 2. Отправляем запрос в MediatR.
         var resultDto = await _mediator.Send(query);
-
-        // 3. Проверяем результат и возвращаем либо 200 OK, либо 404 Not Found.
-        return resultDto is not null ? Ok(resultDto) : NotFound("Account not found");
+        
+        return Ok(resultDto); 
     }
     
     /// <summary>
