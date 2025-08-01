@@ -24,8 +24,13 @@ builder.Services.AddSingleton<IClientVerificationService, StubClientVerification
 builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
 builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
 
+
+// Устанавливаем глобальное правило: для каждого свойства (RuleFor)
+// прекращать валидацию после первой же неудавшейся проверки.
+ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
+
 // Регистрируем FluentValidation и все валидаторы из сборки
-builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Регистрируем AutoMapper и все профили из сборки
 builder.Services.AddAutoMapper(_ => { }, typeof(Program));
