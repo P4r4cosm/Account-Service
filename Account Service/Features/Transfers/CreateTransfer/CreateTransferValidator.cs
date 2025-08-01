@@ -2,6 +2,9 @@ using FluentValidation;
 
 namespace AccountService.Features.Transfers.CreateTransfer;
 
+
+
+// ReSharper disable once UnusedType.Global  Resharper решил, что валидаторы не используются
 public class CreateTransferValidator: AbstractValidator<CreateTransferCommand>
 {
     public CreateTransferValidator()

@@ -5,21 +5,14 @@ using MediatR;
 
 namespace AccountService.Features.Accounts.GetAccounts;
 
-public class GetAccountsHandler: IRequestHandler<GetAccountsQuery, PagedResult<AccountDto>>
+public class GetAccountsHandler(IAccountRepository accountRepository, IMapper mapper)
+    : IRequestHandler<GetAccountsQuery, PagedResult<AccountDto>>
 {
-    private readonly IAccountRepository _accountRepository;
-    private readonly IMapper _mapper;
-
-    public GetAccountsHandler(IAccountRepository accountRepository, IMapper mapper)
-    {
-        _accountRepository = accountRepository;
-        _mapper = mapper;
-    }
     public async Task<PagedResult<AccountDto>> Handle(GetAccountsQuery request, CancellationToken cancellationToken)
         {
             // 1. Получаем все счета из источника данных (в вашем случае - из in-memory списка).
             // Важно: на этом этапе мы получаем IEnumerable, то есть все данные уже в памяти.
-            var accounts = await _accountRepository.GetAllAsync(cancellationToken);
+            var accounts = await accountRepository.GetAllAsync(cancellationToken);
 
             // 2. Последовательно применяем фильтры, если они были указаны в запросе.
             // Каждый .Where() сужает набор данных.
@@ -74,7 +67,7 @@ public class GetAccountsHandler: IRequestHandler<GetAccountsQuery, PagedResult<A
                 .Take(request.PageSize);
 
             // 5. Маппим только страницу данных в DTO.
-            var resultDto = _mapper.Map<IEnumerable<AccountDto>>(pagedData);
+            var resultDto = mapper.Map<IEnumerable<AccountDto>>(pagedData);
 
             // 6. Создаем и возвращаем PagedResult.
             return new PagedResult<AccountDto>(resultDto, totalCount, request.PageNumber, request.PageSize);

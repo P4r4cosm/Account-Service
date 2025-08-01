@@ -5,36 +5,31 @@ using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace AccountService.Shared.Filters;
 
-public class ApiExceptionFilter:  IExceptionFilter
+// ReSharper disable once ClassNeverInstantiated.Global Resharper считает что класс не создаётся, хотя он зарегистрирован как фильтр контроллеров
+public class ApiExceptionFilter(ILogger<ApiExceptionFilter> logger) : IExceptionFilter
 {
-    private readonly ILogger<ApiExceptionFilter> _logger;
-
-    public ApiExceptionFilter(ILogger<ApiExceptionFilter> logger)
-    {
-        _logger = logger;
-    }
     public void OnException(ExceptionContext context)
     {
         switch (context.Exception)
         {
             case NotFoundException ex:
-                _logger.LogError(ex.Message);
+                logger.LogError(ex, "Entity not found. Message: {ErrorMessage}", ex.Message);
                 context.Result = new NotFoundObjectResult(new { error = ex.Message });
                 break;
-            
-            // Ошибка валидации из FluentValidation
+
             case ValidationException ex:
-                _logger.LogError(ex.Message);
+                logger.LogError(ex, "Validation failed. Message: {ErrorMessage}", ex.Message);
                 var errors = ex.Errors.Select(err => new { property = err.PropertyName, message = err.ErrorMessage });
                 context.Result = new BadRequestObjectResult(new { errors });
                 break;
+
             case OperationNotAllowedException ex:
-                _logger.LogError(ex.Message);
+                logger.LogError(ex, "Operation not allowed. Message: {ErrorMessage}", ex.Message);
                 context.Result = new BadRequestObjectResult(new { error = ex.Message });
                 break;
+
             default:
-                _logger.LogError(context.Exception, context.Exception.Message);
-                // И возвращаем клиенту стандартизированный ответ 500
+                logger.LogError(context.Exception, "An unexpected error occurred.");
                 var details = new ProblemDetails
                 {
                     Status = StatusCodes.Status500InternalServerError,

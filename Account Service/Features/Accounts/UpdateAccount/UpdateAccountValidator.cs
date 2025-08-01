@@ -1,7 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using FluentValidation;
 
 namespace AccountService.Features.Accounts.UpdateAccount;
 
+//Resharper решил, что валидаторы не используются
+[SuppressMessage("ReSharper", "UnusedType.Global")]
 public class UpdateAccountValidator:  AbstractValidator<UpdateAccountCommand>
 {
     
@@ -15,5 +18,6 @@ public class UpdateAccountValidator:  AbstractValidator<UpdateAccountCommand>
         RuleFor(x => x.InterestRate)
             .GreaterThanOrEqualTo(0).When(x => x.InterestRate.HasValue)
             .WithMessage("Процентная ставка не может быть отрицательной.");
+        
     }
 }

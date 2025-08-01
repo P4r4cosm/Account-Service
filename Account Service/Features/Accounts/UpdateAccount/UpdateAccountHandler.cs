@@ -5,25 +5,21 @@ using MediatR;
 
 namespace AccountService.Features.Accounts.UpdateAccount;
 
-public class UpdateAccountHandler: IRequestHandler<UpdateAccountCommand, Unit>
+public class UpdateAccountHandler(
+    IAccountRepository accountRepository,
+    IClientVerificationService clientVerificationService)
+    : IRequestHandler<UpdateAccountCommand, Unit>
 {
-    private readonly IAccountRepository _accountRepository;
-    private readonly IClientVerificationService  _clientVerificationService;
-    public UpdateAccountHandler(IAccountRepository accountRepository, IClientVerificationService clientVerificationService)
-    {
-        _accountRepository = accountRepository;
-        _clientVerificationService = clientVerificationService;
-    }
     public async Task<Unit> Handle(UpdateAccountCommand request, CancellationToken cancellationToken)
     {
-        var account = await _accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
+        var account = await accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
         if (account is null)
         {
             throw new NotFoundException($"Счёт {request.AccountId} не найден.");
         }
         
         // Проверяем существование нового владельца
-        if (!await _clientVerificationService.ClientExistsAsync(request.OwnerId, cancellationToken))
+        if (!await clientVerificationService.ClientExistsAsync(request.OwnerId, cancellationToken))
         {
             throw new NotFoundException($"Клиент {request.OwnerId} не найден.");
         }
@@ -44,7 +40,7 @@ public class UpdateAccountHandler: IRequestHandler<UpdateAccountCommand, Unit>
         account.InterestRate = request.InterestRate; // Если в запросе придет null, поле обнулится.
         account.CloseDate = request.CloseDate;     // Если в запросе придет null, дата закрытия сотрется.
         
-        await _accountRepository.UpdateAsync(account, cancellationToken);
+        await accountRepository.UpdateAsync(account, cancellationToken);
         return Unit.Value;
     }
 }

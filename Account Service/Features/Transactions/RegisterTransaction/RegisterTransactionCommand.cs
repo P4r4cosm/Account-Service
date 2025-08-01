@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using MediatR;
 
@@ -6,6 +7,7 @@ namespace AccountService.Features.Transactions.RegisterTransaction;
 /// <summary>
 /// Команда для регистрации одной транзакции (пополнения или списания) по счёту.
 /// </summary>
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class RegisterTransactionCommand : IRequest<TransactionDto>
 {
     

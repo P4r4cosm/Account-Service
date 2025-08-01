@@ -5,20 +5,12 @@ using MediatR;
 
 namespace AccountService.Features.Transactions.RegisterTransaction;
 
-public class RegisterTransactionHandler : IRequestHandler<RegisterTransactionCommand, TransactionDto>
+public class RegisterTransactionHandler(IAccountRepository accountRepository, IMapper mapper)
+    : IRequestHandler<RegisterTransactionCommand, TransactionDto>
 {
-    private readonly IAccountRepository _accountRepository;
-    private readonly IMapper _mapper;
-
-    public RegisterTransactionHandler(IAccountRepository accountRepository, IMapper mapper)
-    {
-        _accountRepository = accountRepository;
-        _mapper = mapper;
-    }
-
     public async Task<TransactionDto> Handle(RegisterTransactionCommand request, CancellationToken cancellationToken)
     {
-        var account = await _accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
+        var account = await accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
         if (account is null)
         {
             throw new NotFoundException($"Счёт {request.AccountId} не найден.");
@@ -29,7 +21,7 @@ public class RegisterTransactionHandler : IRequestHandler<RegisterTransactionCom
             throw new OperationNotAllowedException("Операции по закрытому счёту невозможны.");
         }
         
-        var newTransaction = _mapper.Map<Transaction>(request);
+        var newTransaction = mapper.Map<Transaction>(request);
         
         newTransaction.Id = Guid.NewGuid();
         newTransaction.AccountId = account.Id;
@@ -43,11 +35,11 @@ public class RegisterTransactionHandler : IRequestHandler<RegisterTransactionCom
         {
             throw new OperationNotAllowedException("Недостаточно средств на счёте для списания.");
         }
-        account.Balance += (transactionType == TransactionType.Credit) ? request.Amount : -request.Amount;
+        account.Balance += transactionType == TransactionType.Credit ? request.Amount : -request.Amount;
     
         account.Transactions.Add(newTransaction);
-        await _accountRepository.UpdateAsync(account, cancellationToken);
+        await accountRepository.UpdateAsync(account, cancellationToken);
 
-        return _mapper.Map<TransactionDto>(newTransaction);
+        return mapper.Map<TransactionDto>(newTransaction);
     }
 }

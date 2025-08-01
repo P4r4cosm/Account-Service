@@ -16,14 +16,8 @@ namespace AccountService.Features.Accounts;
 [ApiController]
 [Produces("application/json")]
 [Route("api/[controller]")]
-public class AccountsController : ControllerBase
+public class AccountsController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-    public AccountsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Создает новый банковский счёт.
     /// </summary>
@@ -55,7 +49,7 @@ public class AccountsController : ControllerBase
     public async Task<IActionResult> CreateAccount([FromBody] CreateAccountCommand command)
     {
         //отправляем команду в mediator
-        var createdAccountDto = await _mediator.Send(command);
+        var createdAccountDto = await mediator.Send(command);
         // CreatedAtAction генерирует URL для получения только что созданного ресурса.
         return CreatedAtAction(nameof(GetAccountById),
             new { accountId = createdAccountDto.Id }, createdAccountDto);
@@ -76,8 +70,8 @@ public class AccountsController : ControllerBase
         // 1. Создаем объект запроса с ID из URL.
         var query = new GetAccountByIdQuery(accountId);
 
-        // 2. Отправляем запрос в MediatR.
-        var resultDto = await _mediator.Send(query);
+        // 2. Отправляем запрос
+        var resultDto = await mediator.Send(query);
         
         return Ok(resultDto); 
     }
@@ -96,7 +90,7 @@ public class AccountsController : ControllerBase
     public async Task<IActionResult> GetAccountField([FromRoute] Guid accountId, [FromRoute] string fieldName)
     {
         var query = new GetAccountFieldQuery(accountId, fieldName);
-        var result = await _mediator.Send(query);
+        var result = await mediator.Send(query);
         
         return result is not null ? Ok(result) : NotFound("Field not found");
     }
@@ -126,7 +120,7 @@ public class AccountsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetAccounts([FromQuery] GetAccountsQuery query)
     {
-        var resultDto = await _mediator.Send(query);
+        var resultDto = await mediator.Send(query);
         return Ok(resultDto);
     }
 
@@ -144,7 +138,7 @@ public class AccountsController : ControllerBase
     {
         var command = new DeleteAccountCommand(accountId);
 
-        await _mediator.Send(command); // Отправляем команду
+        await mediator.Send(command); // Отправляем команду
 
         // Если команда успешно выполнена (не бросила исключение),
         // возвращаем 204 No Content.
@@ -163,7 +157,7 @@ public class AccountsController : ControllerBase
     public async Task<IActionResult> HasAccounts([FromRoute] Guid ownerId)
     {
         var query = new CheckOwnerHasAccountsQuery(ownerId);
-        var result = await _mediator.Send(query);
+        var result = await mediator.Send(query);
         return Ok(result);
     }
     
@@ -196,7 +190,7 @@ public class AccountsController : ControllerBase
     {
         // Устанавливаем ID из маршрута в команду, чтобы они были синхронизированы
         command.AccountId = accountId;
-        await _mediator.Send(command);
+        await mediator.Send(command);
         return NoContent();
     }
     
@@ -227,7 +221,7 @@ public class AccountsController : ControllerBase
     public async Task<IActionResult> PatchAccount([FromRoute] Guid accountId, [FromBody] PatchAccountCommand command)
     {
         command.AccountId = accountId; // Устанавливаем ID из маршрута
-        await _mediator.Send(command);
+        await mediator.Send(command);
         return NoContent();
     }
     

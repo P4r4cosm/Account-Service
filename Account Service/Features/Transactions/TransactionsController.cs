@@ -12,17 +12,8 @@ namespace AccountService.Features.Transactions;
 [ApiController]
 [Route("api/accounts/{accountId:guid}/transactions")]
 [Produces("application/json")]
-public class TransactionsController: ControllerBase
+public class TransactionsController(IMediator mediator) : ControllerBase
 {
-    
-    private readonly IMediator _mediator;
-
-    public TransactionsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
-
     /// <summary>
     /// Регистрирует новую транзакцию (пополнение или списание) для указанного счёта.
     /// </summary>
@@ -53,7 +44,7 @@ public class TransactionsController: ControllerBase
     public async Task<IActionResult> RegisterTransaction([FromRoute] Guid accountId, [FromBody] RegisterTransactionCommand command)
     {
         command.AccountId = accountId;
-        var transactionDto = await _mediator.Send(command);
+        var transactionDto = await mediator.Send(command);
         
         // Теперь эта ссылка полностью корректна и ведёт на работающий эндпоинт
         return CreatedAtAction(
@@ -93,7 +84,7 @@ public class TransactionsController: ControllerBase
     public async Task<IActionResult> GetAccountStatement([FromRoute] Guid accountId, [FromQuery] GetAccountStatementQuery query)
     {
         query.AccountId = accountId;
-        var result = await _mediator.Send(query);
+        var result = await mediator.Send(query);
         return Ok(result);
     }
     /// <summary>
@@ -110,7 +101,7 @@ public class TransactionsController: ControllerBase
     public async Task<IActionResult> GetTransactionById([FromRoute] Guid accountId, [FromRoute] Guid transactionId)
     {
         var query = new GetTransactionByIdQuery(accountId, transactionId);
-        var transaction = await _mediator.Send(query);
+        var transaction = await mediator.Send(query);
         return Ok(transaction);
     }
 }

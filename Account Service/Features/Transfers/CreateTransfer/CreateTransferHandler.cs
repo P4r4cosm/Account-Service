@@ -6,24 +6,18 @@ using MediatR;
 
 namespace AccountService.Features.Transfers.CreateTransfer;
 
-public class CreateTransferHandler : IRequestHandler<CreateTransferCommand, Unit>
+public class CreateTransferHandler(IAccountRepository accountRepository) : IRequestHandler<CreateTransferCommand, Unit>
 {
-    
-    private readonly IAccountRepository _accountRepository;
     // В будущем здесь может понадобиться IUnitOfWork для обеспечения транзакционности БД
-    
-    public CreateTransferHandler(IAccountRepository accountRepository)
-    {
-        _accountRepository = accountRepository;
-    }
+
     public async Task<Unit> Handle(CreateTransferCommand request, CancellationToken cancellationToken)
     {
         // 1. Получаем оба счёта
-        var fromAccount = await _accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
+        var fromAccount = await accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
         if (fromAccount is null)
             throw new NotFoundException($"Счёт списания {request.FromAccountId} не найден.");
 
-        var toAccount = await _accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
+        var toAccount = await accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
         if (toAccount is null)
             throw new NotFoundException($"Счёт зачисления {request.ToAccountId} не найден.");
 
@@ -79,8 +73,8 @@ public class CreateTransferHandler : IRequestHandler<CreateTransferCommand, Unit
         toAccount.Transactions.Add(creditTransaction);
 
         // 5. Сохраняем изменения
-        await _accountRepository.UpdateAsync(fromAccount, cancellationToken);
-        await _accountRepository.UpdateAsync(toAccount, cancellationToken);
+        await accountRepository.UpdateAsync(fromAccount, cancellationToken);
+        await accountRepository.UpdateAsync(toAccount, cancellationToken);
 
         return Unit.Value;
     }

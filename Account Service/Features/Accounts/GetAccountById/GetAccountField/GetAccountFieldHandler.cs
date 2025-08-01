@@ -1,21 +1,17 @@
+using System.Diagnostics.CodeAnalysis;
 using AccountService.Infrastructure.Persistence;
 using AccountService.Shared.Exceptions;
 using MediatR;
 
 namespace AccountService.Features.Accounts.GetAccountById.GetAccountField;
 
-public class GetAccountFieldHandler : IRequestHandler<GetAccountFieldQuery, object?>
+public class GetAccountFieldHandler(IAccountRepository accountRepository)
+    : IRequestHandler<GetAccountFieldQuery, object?>
 {
-    private readonly IAccountRepository _accountRepository;
-
-    public GetAccountFieldHandler(IAccountRepository accountRepository)
-    {
-        _accountRepository = accountRepository;
-    }
-
+    [SuppressMessage("ReSharper", "StringLiteralTypo")] //Resharper жалуется на приведённые в switch параметры к нижнему регистру (ownerId, accountType и т.д.)
     public async Task<object?> Handle(GetAccountFieldQuery request, CancellationToken cancellationToken)
     {
-        var account = await _accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
+        var account = await accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
         if (account is null)
         {
             throw new NotFoundException("Account not found");

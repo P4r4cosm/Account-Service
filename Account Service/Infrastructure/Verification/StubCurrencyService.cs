@@ -14,10 +14,10 @@ public class StubCurrencyService: ICurrencyService
         "EUR"
     };
 
-    // В реальном приложении здесь мог бы быть запрос к API Центробанка или к внутренней базе.
+    
     public Task<bool> IsSupportedAsync(string currencyCode, CancellationToken cancellationToken = default)
     {
-        bool isSupported = !string.IsNullOrEmpty(currencyCode) && SupportedCurrencies.Contains(currencyCode);
+        var isSupported = !string.IsNullOrEmpty(currencyCode) && SupportedCurrencies.Contains(currencyCode);
         return Task.FromResult(isSupported);
     }
 }

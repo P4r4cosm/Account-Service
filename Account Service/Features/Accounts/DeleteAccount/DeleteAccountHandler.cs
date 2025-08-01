@@ -4,19 +4,13 @@ using MediatR;
 
 namespace AccountService.Features.Accounts.DeleteAccount;
 
-public class DeleteAccountHandler : IRequestHandler<DeleteAccountCommand, Unit>
+public class DeleteAccountHandler(IAccountRepository accountRepository) : IRequestHandler<DeleteAccountCommand, Unit>
 {
-    private readonly IAccountRepository _accountRepository;
-
-    public DeleteAccountHandler(IAccountRepository accountRepository)
-    {
-        _accountRepository = accountRepository;
-    }
     public async Task<Unit> Handle(DeleteAccountCommand request, CancellationToken cancellationToken)
     {
-        var account = await _accountRepository.GetByIdAsync(request.AccountId,cancellationToken);
+        var account = await accountRepository.GetByIdAsync(request.AccountId,cancellationToken);
         if (account == null) throw new NotFoundException("Account not found");
-        await _accountRepository.DeleteAsync(account,cancellationToken);
+        await accountRepository.DeleteAsync(account,cancellationToken);
         return Unit.Value;
     }
 }

@@ -9,7 +9,7 @@ public class StubClientVerificationService : IClientVerificationService
     public Task<bool> ClientExistsAsync(Guid ownerId, CancellationToken cancellationToken = default)
     {
         // Простая имитация: считаем, что клиент существует, если его ID не пустой.
-        bool exists = ownerId != Guid.Empty;
+        var exists = ownerId != Guid.Empty;
         return Task.FromResult(exists);
     }
 }

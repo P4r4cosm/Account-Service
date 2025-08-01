@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using AccountService.Shared.Domain;
 using MediatR;
 
@@ -6,6 +7,8 @@ namespace AccountService.Features.Accounts.GetAccounts;
 /// <summary>
 /// Запрос на получение списка счетов с расширенными параметрами фильтрации.
 /// </summary>
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class GetAccountsQuery : IRequest<PagedResult<AccountDto>>
 {
     /// <summary>

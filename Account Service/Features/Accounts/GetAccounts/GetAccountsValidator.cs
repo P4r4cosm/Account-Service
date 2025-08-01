@@ -1,10 +1,14 @@
 
+using System.Diagnostics.CodeAnalysis;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Validation;
 using FluentValidation;
 
 namespace AccountService.Features.Accounts.GetAccounts;
 
+
+//Resharper решил, что валидаторы не используются
+[SuppressMessage("ReSharper", "UnusedType.Global")]
 public class GetAccountsValidator : AbstractValidator<GetAccountsQuery>
 {
     // макс. размер страницы

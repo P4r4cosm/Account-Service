@@ -6,31 +6,25 @@ using MediatR;
 
 namespace AccountService.Features.Accounts.PatchAccount;
 
-public class PatchAccountHandler : IRequestHandler<PatchAccountCommand, Unit>
+public class PatchAccountHandler(
+    IAccountRepository accountRepository,
+    IClientVerificationService clientVerificationService)
+    : IRequestHandler<PatchAccountCommand, Unit>
 {
-    private readonly IAccountRepository _accountRepository;
-    private readonly IClientVerificationService _clientVerificationService;
-
-    public PatchAccountHandler(IAccountRepository accountRepository, IClientVerificationService clientVerificationService)
-    {
-        _accountRepository = accountRepository;
-        _clientVerificationService = clientVerificationService;
-    }
-
     public async Task<Unit> Handle(PatchAccountCommand request, CancellationToken cancellationToken)
     {
-        var account = await _accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
+        var account = await accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
         if (account is null)
         {
             throw new NotFoundException($"Счёт {request.AccountId} не найден.");
         }
 
-        bool hasChanges = false;
+        var hasChanges = false;
 
         // 1. Обновляем OwnerId, если он был передан
         if (request.OwnerId.HasValue && request.OwnerId.Value != account.OwnerId)
         {
-            if (!await _clientVerificationService.ClientExistsAsync(request.OwnerId.Value, cancellationToken))
+            if (!await clientVerificationService.ClientExistsAsync(request.OwnerId.Value, cancellationToken))
             {
                 throw new NotFoundException($"Клиент {request.OwnerId.Value} не найден.");
             }
@@ -63,7 +57,7 @@ public class PatchAccountHandler : IRequestHandler<PatchAccountCommand, Unit>
         // Сохраняем изменения, только если они были
         if (hasChanges)
         {
-            await _accountRepository.UpdateAsync(account, cancellationToken);
+            await accountRepository.UpdateAsync(account, cancellationToken);
         }
 
         return Unit.Value;

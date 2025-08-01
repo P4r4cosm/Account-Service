@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using AccountService.Features.Accounts;
 
 namespace AccountService.Infrastructure.Persistence;
 
+[SuppressMessage("ReSharper", "UnusedParameter.Global")] //Resharper жалуется на неиспользование токена в реализациях, но он добавлен на будущее
 public interface IAccountRepository
 {
     Task<Account?>  GetByIdAsync(Guid id, CancellationToken cancellationToken);

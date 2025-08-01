@@ -6,6 +6,9 @@ using AutoMapper;
 
 namespace AccountService.Shared.Behaviors;
 
+
+
+// ReSharper disable once UnusedType.Global Resharper решил что класс не используется
 public class MappingProfile: Profile
 {
     public MappingProfile()

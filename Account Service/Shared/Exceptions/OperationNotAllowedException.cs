@@ -1,8 +1,3 @@
 namespace AccountService.Shared.Exceptions;
 
-public class OperationNotAllowedException : Exception
-{
-    public OperationNotAllowedException(string message) : base(message)
-    {
-    }
-}
+public class OperationNotAllowedException(string message) : Exception(message);

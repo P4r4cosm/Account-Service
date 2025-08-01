@@ -8,10 +8,10 @@ namespace AccountService.Shared.Validation;
 public static class ValidationExtensions
 {
     private static readonly IReadOnlyCollection<string> ValidAccountTypes =
-        Enum.GetNames(typeof(AccountType)).ToList().AsReadOnly();
+        Enum.GetNames<AccountType>().ToList().AsReadOnly();
     
     private static readonly IReadOnlyCollection<string> ValidTransactionType =
-        Enum.GetNames(typeof(TransactionType)).ToList().AsReadOnly();
+        Enum.GetNames<TransactionType>().ToList().AsReadOnly();
 
     /// <summary>
     /// Проверяет, что строковое представление типа счёта является допустимым.
@@ -21,13 +21,10 @@ public static class ValidationExtensions
         return ruleBuilder
             .Must(type =>
             {
-                if (string.IsNullOrEmpty(type))
-                {
-                    return true; // Не валидируем пустые значения, для этого есть .NotEmpty()
-                }
-
-                // Проверка без учета регистра
-                return ValidAccountTypes.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
+                return string.IsNullOrEmpty(type) ||
+                       // Не валидируем пустые значения, для этого есть .NotEmpty()
+                       // Проверка без учета регистра
+                       ValidAccountTypes.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
             })
             .WithMessage("Указан некорректный тип счёта '{PropertyValue}'. " +
                          $"Допустимые значения: {string.Join(", ", ValidAccountTypes)}");
@@ -51,11 +48,9 @@ public static class ValidationExtensions
     {
         return ruleBuilder.Must(type =>
         {
-            if (string.IsNullOrEmpty(type))
-            {
-                return true;
-            }
-            return ValidTransactionType.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
+            return string.IsNullOrEmpty(type)
+                   || ValidTransactionType.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
+
         }).WithMessage("Указан некорректный тип счёта '{PropertyValue}'. " +
                        $"Допустимые значения: {string.Join(", ", ValidTransactionType)}");
     }

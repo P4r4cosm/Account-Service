@@ -1,7 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using FluentValidation;
 
 namespace AccountService.Features.Accounts.PatchAccount;
 
+
+//Resharper решил, что валидаторы не используются
+[SuppressMessage("ReSharper", "UnusedType.Global")]
 public class PatchAccountCommandValidator : AbstractValidator<PatchAccountCommand>
 {
     public PatchAccountCommandValidator()

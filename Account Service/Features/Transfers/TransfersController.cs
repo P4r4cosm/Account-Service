@@ -7,15 +7,8 @@ namespace AccountService.Features.Transfers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class TransfersController: ControllerBase
+public class TransfersController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public TransfersController(IMediator mediator) 
-    { 
-        _mediator = mediator; 
-    }
-
     /// <summary>
     /// Выполняет перевод средств между двумя счетами.
     /// </summary>
@@ -50,7 +43,7 @@ public class TransfersController: ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CreateTransfer([FromBody] CreateTransferCommand command)
     {
-        await _mediator.Send(command);
+        await mediator.Send(command);
         return NoContent(); // 204 No Content - идеальный ответ для успешной операции, которая не возвращает тело.
     }
 }

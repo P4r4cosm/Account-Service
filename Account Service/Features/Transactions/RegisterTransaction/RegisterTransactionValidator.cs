@@ -1,20 +1,23 @@
 
 
+using System.Diagnostics.CodeAnalysis;
 using AccountService.Shared.Validation;
 using FluentValidation;
 
 namespace AccountService.Features.Transactions.RegisterTransaction;
 
+//Resharper решил, что валидаторы не используются
+[SuppressMessage("ReSharper", "UnusedType.Global")]
 public class RegisterTransactionValidator : AbstractValidator<RegisterTransactionCommand>
 {
-    private static int _minTransactionAmmount = 0;
+    private const int MinTransactionAmount = 0;
 
-    private static int _maxDescriptionLength = 200;
-    
+    private const int MaxDescriptionLength = 200;
+
     public RegisterTransactionValidator()
     {
-        RuleFor(x => x.Amount).GreaterThan(_minTransactionAmmount)
-            .WithMessage($"Сумма перевода не может быть меньше {_minTransactionAmmount}");
+        RuleFor(x => x.Amount).GreaterThan(MinTransactionAmount)
+            .WithMessage($"Сумма перевода не может быть меньше {MinTransactionAmount}");
 
         RuleFor(x => x.Type)
             .MustBeValidTransactionType()
@@ -22,6 +25,6 @@ public class RegisterTransactionValidator : AbstractValidator<RegisterTransactio
         
         RuleFor(x => x.Description)
             .NotEmpty().WithMessage("Описание не может быть пустым.")
-            .MaximumLength(_maxDescriptionLength).WithMessage($"Длина описания не должна превышать {_maxDescriptionLength} символов.");
+            .MaximumLength(MaxDescriptionLength).WithMessage($"Длина описания не должна превышать {MaxDescriptionLength} символов.");
     }
 }

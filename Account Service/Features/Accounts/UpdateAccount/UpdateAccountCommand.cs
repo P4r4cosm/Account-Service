@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using MediatR;
 
@@ -7,6 +8,8 @@ namespace AccountService.Features.Accounts.UpdateAccount;
 /// <summary>
 /// Команда для полного обновления данных банковского счёта.
 /// </summary>
+
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class UpdateAccountCommand : IRequest<Unit>
 {
 

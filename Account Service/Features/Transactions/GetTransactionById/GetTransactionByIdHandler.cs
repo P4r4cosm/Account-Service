@@ -5,20 +5,12 @@ using MediatR;
 
 namespace AccountService.Features.Transactions.GetTransactionById;
 
-public class GetTransactionByIdHandler : IRequestHandler<GetTransactionByIdQuery, TransactionDto>
+public class GetTransactionByIdHandler(IAccountRepository accountRepository, IMapper mapper)
+    : IRequestHandler<GetTransactionByIdQuery, TransactionDto>
 {
-    private readonly IAccountRepository _accountRepository;
-    private readonly IMapper _mapper;
-
-    public GetTransactionByIdHandler(IAccountRepository accountRepository, IMapper mapper)
-    {
-        _accountRepository = accountRepository;
-        _mapper = mapper;
-    }
-
     public async Task<TransactionDto> Handle(GetTransactionByIdQuery request, CancellationToken cancellationToken)
     {
-        var account = await _accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
+        var account = await accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
         if (account is null)
         {
             //Даже если транзакция с таким ID существует у другого счёта,
@@ -34,6 +26,6 @@ public class GetTransactionByIdHandler : IRequestHandler<GetTransactionByIdQuery
             throw new NotFoundException($"Транзакция {request.TransactionId} на счёте {request.AccountId} не найдена.");
         }
 
-        return _mapper.Map<TransactionDto>(transaction);
+        return mapper.Map<TransactionDto>(transaction);
     }
 }
