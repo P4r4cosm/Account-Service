@@ -1,4 +1,4 @@
-using AccountService.Core.Domain;
+using AccountService.Shared.Domain;
 
 namespace AccountService.Features.Transactions;
 
@@ -20,7 +20,7 @@ public class AccountStatementDto
     /// <summary>
     /// Тип счёта (например, "Checking", "Deposit").
     /// </summary>
-    public string AccountType { get; set; }
+    public required string AccountType { get; set; }
 
     /// <summary>
     ///* Текущий баланс счёта.
@@ -30,7 +30,7 @@ public class AccountStatementDto
     /// <summary>
     /// Валюта счёта (ISO 4217).
     /// </summary>
-    public string Currency { get; set; }
+    public required string Currency { get; set; }
     
     /// <summary>
     /// Дата открытия счёта.
@@ -40,5 +40,5 @@ public class AccountStatementDto
     /// <summary>
     /// Пагинированный список транзакций за запрошенный период.
     /// </summary>
-    public PagedResult<TransactionDto> Transactions { get; set; }
+    public required PagedResult<TransactionDto> Transactions { get; set; }
 }

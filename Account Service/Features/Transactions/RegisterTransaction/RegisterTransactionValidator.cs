@@ -1,5 +1,6 @@
-using System.Data;
-using AccountService.Core.Validation;
+
+
+using AccountService.Shared.Validation;
 using FluentValidation;
 
 namespace AccountService.Features.Transactions.RegisterTransaction;

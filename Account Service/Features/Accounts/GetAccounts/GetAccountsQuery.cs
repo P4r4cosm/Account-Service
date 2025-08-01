@@ -1,4 +1,4 @@
-using AccountService.Core.Domain;
+using AccountService.Shared.Domain;
 using MediatR;
 
 namespace AccountService.Features.Accounts.GetAccounts;
@@ -30,25 +30,25 @@ public class GetAccountsQuery : IRequest<PagedResult<AccountDto>>
     /// Фильтр по минимальному балансу (включительно).
     /// </summary>
     /// <example>5000</example>
-    public decimal? Balance_gte { get; set; } // gte = Greater Than or Equal
+    public decimal? BalanceGte { get; set; } // gte = Greater Than or Equal
 
     /// <summary>
     /// Фильтр по максимальному балансу (включительно).
     /// </summary>
     /// <example>100000</example>
-    public decimal? Balance_lte { get; set; } // lte = Less Than or Equal
+    public decimal? BalanceLte { get; set; } // lte = Less Than or Equal
         
     /// <summary>
     /// Фильтр по начальной дате открытия счёта (включительно).
     /// </summary>
     /// <example>2025-01-01</example>
-    public DateTime? OpeningDate_from { get; set; }
+    public DateTime? OpeningDateFrom { get; set; }
 
     /// <summary>
     /// Фильтр по конечной дате открытия счёта (включительно).
     /// </summary>
     /// <example>2025-07-29</example>
-    public DateTime? OpeningDate_to { get; set; }
+    public DateTime? OpeningDateTo { get; set; }
     
     /// <summary>
     /// Номер страницы (начиная с 1).

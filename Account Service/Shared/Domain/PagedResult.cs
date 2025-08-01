@@ -1,4 +1,4 @@
-namespace AccountService.Core.Domain;
+namespace AccountService.Shared.Domain;
 
 /// <summary>
 /// Представляет результат запроса с пагинацией.

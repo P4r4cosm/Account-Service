@@ -1,6 +1,6 @@
-using AccountService.Domain.Exceptions;
 using AccountService.Infrastructure.Persistence;
 using AccountService.Infrastructure.Verification;
+using AccountService.Shared.Exceptions;
 using FluentValidation;
 using MediatR;
 

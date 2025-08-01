@@ -1,7 +1,7 @@
-using AccountService.Domain.Exceptions;
-using AccountService.Features.Accounts;
+
 using AccountService.Features.Transactions;
 using AccountService.Infrastructure.Persistence;
+using AccountService.Shared.Exceptions;
 using MediatR;
 
 namespace AccountService.Features.Transfers.CreateTransfer;

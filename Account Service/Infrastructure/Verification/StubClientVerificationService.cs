@@ -1,7 +1,7 @@
 namespace AccountService.Infrastructure.Verification;
-// <summary>
+/// <summary>
 /// Заглушка, имитирующая работу внешнего сервиса верификации клиентов.
-/// </summary>
+///</summary>
 public class StubClientVerificationService : IClientVerificationService
 {
     // В реальном приложении здесь был бы HTTP-запрос к микросервису "User Service".

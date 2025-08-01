@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using AccountService.Core.Domain;
 using MediatR;
 
 namespace AccountService.Features.Transactions.GetAccountStatement;

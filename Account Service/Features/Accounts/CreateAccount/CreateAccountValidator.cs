@@ -1,20 +1,19 @@
-using AccountService.Core.Validation;
+
 using AccountService.Infrastructure.Verification;
+using AccountService.Shared.Validation;
 using FluentValidation;
 
 namespace AccountService.Features.Accounts.CreateAccount;
 
 public class CreateAccountValidator: AbstractValidator<CreateAccountCommand>
 {
-    private readonly ICurrencyService _currencyService;
     public CreateAccountValidator(ICurrencyService currencyService) 
     {
-        _currencyService = currencyService;
         RuleFor(x => x.OwnerId).NotEmpty();
         
         //проверка валюты
         RuleFor(x => x.Currency)
-            .MustBeValidCurrency(_currencyService)
+            .MustBeValidCurrency(currencyService)
             .When(x => !string.IsNullOrEmpty(x.Currency));
         
         // проверка счёта

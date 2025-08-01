@@ -1,8 +1,7 @@
-using AccountService.Features.Accounts.CreateAccount;
-using MediatR;
 using FluentValidation;
+using MediatR;
 
-namespace AccountService.Core.Behaviors;
+namespace AccountService.Shared.Behaviors;
 
 /// <summary>
 /// Pipeline-поведение для MediatR, которое автоматически выполняет валидацию

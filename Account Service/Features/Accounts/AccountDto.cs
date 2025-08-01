@@ -21,13 +21,13 @@ public class AccountDto
     /// Тип счёта. Возможные значения: Checking, Deposit, Credit.
     /// </summary>
     /// <example>Deposit</example>
-    public string AccountType { get; set; }
+    public required string AccountType { get; set; }
 
     /// <summary>
     /// Код валюты в формате ISO 4217.
     /// </summary>
     /// <example>RUB</example>
-    public string Currency { get; set; }
+    public required string Currency { get; set; }
 
     /// <summary>
     /// Текущий баланс счёта.

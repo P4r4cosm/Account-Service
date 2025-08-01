@@ -1,9 +1,9 @@
-using AccountService.Domain.Exceptions;
+using AccountService.Shared.Exceptions;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace AccountService.Filters;
+namespace AccountService.Shared.Filters;
 
 public class ApiExceptionFilter:  IExceptionFilter
 {

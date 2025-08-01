@@ -1,5 +1,5 @@
-using AccountService.Domain.Exceptions;
 using AccountService.Infrastructure.Persistence;
+using AccountService.Shared.Exceptions;
 using MediatR;
 
 namespace AccountService.Features.Accounts.GetAccountById.GetAccountField;

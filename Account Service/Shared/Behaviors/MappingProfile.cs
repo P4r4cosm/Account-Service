@@ -1,9 +1,10 @@
+using AccountService.Features.Accounts;
 using AccountService.Features.Accounts.CreateAccount;
 using AccountService.Features.Transactions;
 using AccountService.Features.Transactions.RegisterTransaction;
 using AutoMapper;
 
-namespace AccountService.Features.Accounts;
+namespace AccountService.Shared.Behaviors;
 
 public class MappingProfile: Profile
 {

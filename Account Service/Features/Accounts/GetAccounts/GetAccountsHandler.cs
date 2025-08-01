@@ -1,5 +1,5 @@
-using AccountService.Core.Domain;
 using AccountService.Infrastructure.Persistence;
+using AccountService.Shared.Domain;
 using AutoMapper;
 using MediatR;
 
@@ -32,35 +32,35 @@ public class GetAccountsHandler: IRequestHandler<GetAccountsQuery, PagedResult<A
             if (!string.IsNullOrEmpty(request.AccountType))
             {
                 // Сравнение без учета регистра для надежности
-                accounts = accounts.Where(a => a.AccountType.ToString().Equals(request.AccountType, System.StringComparison.OrdinalIgnoreCase));
+                accounts = accounts.Where(a => a.AccountType.ToString().Equals(request.AccountType, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!string.IsNullOrEmpty(request.Currency))
             {
-                accounts = accounts.Where(a => a.Currency.Equals(request.Currency, System.StringComparison.OrdinalIgnoreCase));
+                accounts = accounts.Where(a => a.Currency.Equals(request.Currency, StringComparison.OrdinalIgnoreCase));
             }
             
             // Фильтрация по балансу
-            if (request.Balance_gte.HasValue)
+            if (request.BalanceGte.HasValue)
             {
-                accounts = accounts.Where(a => a.Balance >= request.Balance_gte.Value);
+                accounts = accounts.Where(a => a.Balance >= request.BalanceGte.Value);
             }
 
-            if (request.Balance_lte.HasValue)
+            if (request.BalanceLte.HasValue)
             {
-                accounts = accounts.Where(a => a.Balance <= request.Balance_lte.Value);
+                accounts = accounts.Where(a => a.Balance <= request.BalanceLte.Value);
             }
 
             // Фильтрация по дате открытия
-            if (request.OpeningDate_from.HasValue)
+            if (request.OpeningDateFrom.HasValue)
             {
                 // Сравниваем только дату, без учета времени
-                accounts = accounts.Where(a => a.OpenedDate.Date >= request.OpeningDate_from.Value.Date);
+                accounts = accounts.Where(a => a.OpenedDate.Date >= request.OpeningDateFrom.Value.Date);
             }
 
-            if (request.OpeningDate_to.HasValue)
+            if (request.OpeningDateTo.HasValue)
             {
-                accounts = accounts.Where(a => a.OpenedDate.Date <= request.OpeningDate_to.Value.Date);
+                accounts = accounts.Where(a => a.OpenedDate.Date <= request.OpeningDateTo.Value.Date);
             }
 
             // 3. Считаем общее количество элементов ПОСЛЕ фильтрации.

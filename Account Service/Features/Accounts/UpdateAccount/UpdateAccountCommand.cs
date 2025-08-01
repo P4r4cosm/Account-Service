@@ -9,6 +9,7 @@ namespace AccountService.Features.Accounts.UpdateAccount;
 /// </summary>
 public class UpdateAccountCommand : IRequest<Unit>
 {
+
     /// <summary>
     /// ID счёта, который необходимо обновить.
     /// </summary>

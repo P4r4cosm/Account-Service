@@ -1,4 +1,3 @@
-using AccountService.Core.Domain;
 using AccountService.Features.Accounts.CheckOwnerHasAccounts;
 using AccountService.Features.Accounts.CreateAccount;
 using AccountService.Features.Accounts.DeleteAccount;
@@ -7,6 +6,7 @@ using AccountService.Features.Accounts.GetAccountById.GetAccountField;
 using AccountService.Features.Accounts.GetAccounts;
 using AccountService.Features.Accounts.PatchAccount;
 using AccountService.Features.Accounts.UpdateAccount;
+using AccountService.Shared.Domain;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 

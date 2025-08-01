@@ -8,6 +8,8 @@ namespace AccountService.Features.Transactions.RegisterTransaction;
 /// </summary>
 public class RegisterTransactionCommand : IRequest<TransactionDto>
 {
+    
+
     /// <summary>
     /// ID счёта, по которому проводится транзакция.
     /// </summary>
@@ -23,11 +25,11 @@ public class RegisterTransactionCommand : IRequest<TransactionDto>
     /// Тип транзакции: "Credit" (зачисление) или "Debit" (списание).
     /// </summary>
     /// <example>Credit</example>
-    public string Type { get; set; }
+    public required string Type { get; set; }
 
     /// <summary>
     /// Описание транзакции.
     /// </summary>
     /// <example>Пополнение наличными в кассе</example>
-    public string Description { get; set; }
+    public required string Description { get; set; }
 }

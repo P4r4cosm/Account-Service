@@ -1,8 +1,6 @@
-using AccountService.Domain.Exceptions;
 using AccountService.Infrastructure.Persistence;
 using AccountService.Infrastructure.Verification;
-using AutoMapper;
-using FluentValidation;
+using AccountService.Shared.Exceptions;
 using MediatR;
 
 namespace AccountService.Features.Accounts.UpdateAccount;

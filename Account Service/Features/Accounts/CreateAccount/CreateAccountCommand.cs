@@ -20,14 +20,14 @@ public class CreateAccountCommand : IRequest<AccountDto>
     /// </summary>
     /// <example>Checking</example>
     [Required]
-    public string AccountType { get; set; }
+    public required string AccountType { get; set; }
 
     /// <summary>
     /// Код валюты счёта в формате ISO 4217.
     /// </summary>
     /// <example>RUB</example>
     [Required]
-    public string Currency { get; set; }
+    public required string Currency { get; set; }
 
     /// <summary>
     /// Процентная ставка по счёту. Обязательно для вкладов (Deposit) и кредитов (Credit).

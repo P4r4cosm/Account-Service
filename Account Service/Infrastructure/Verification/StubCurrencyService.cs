@@ -7,7 +7,7 @@ namespace AccountService.Infrastructure.Verification;
 public class StubCurrencyService: ICurrencyService
 {
     // Набор поддерживаемых валют
-    private static readonly HashSet<string> _supportedCurrencies = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> SupportedCurrencies = new(StringComparer.OrdinalIgnoreCase)
     {
         "RUB",
         "USD",
@@ -17,7 +17,7 @@ public class StubCurrencyService: ICurrencyService
     // В реальном приложении здесь мог бы быть запрос к API Центробанка или к внутренней базе.
     public Task<bool> IsSupportedAsync(string currencyCode, CancellationToken cancellationToken = default)
     {
-        bool isSupported = !string.IsNullOrEmpty(currencyCode) && _supportedCurrencies.Contains(currencyCode);
+        bool isSupported = !string.IsNullOrEmpty(currencyCode) && SupportedCurrencies.Contains(currencyCode);
         return Task.FromResult(isSupported);
     }
 }

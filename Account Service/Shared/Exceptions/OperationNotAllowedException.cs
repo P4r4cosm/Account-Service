@@ -1,4 +1,4 @@
-namespace AccountService.Domain.Exceptions;
+namespace AccountService.Shared.Exceptions;
 
 public class OperationNotAllowedException : Exception
 {

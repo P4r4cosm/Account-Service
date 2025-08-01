@@ -1,5 +1,5 @@
-using AccountService.Domain.Exceptions;
 using AccountService.Infrastructure.Persistence;
+using AccountService.Shared.Exceptions;
 using AutoMapper;
 using MediatR;
 

@@ -3,14 +3,14 @@ using AccountService.Features.Transactions;
 using AccountService.Infrastructure.Verification;
 using FluentValidation;
 
-namespace AccountService.Core.Validation;
+namespace AccountService.Shared.Validation;
 
 public static class ValidationExtensions
 {
-    private static readonly IReadOnlyCollection<string> _validAccountTypes =
+    private static readonly IReadOnlyCollection<string> ValidAccountTypes =
         Enum.GetNames(typeof(AccountType)).ToList().AsReadOnly();
     
-    private static readonly IReadOnlyCollection<string> _validTransactionType =
+    private static readonly IReadOnlyCollection<string> ValidTransactionType =
         Enum.GetNames(typeof(TransactionType)).ToList().AsReadOnly();
 
     /// <summary>
@@ -27,10 +27,10 @@ public static class ValidationExtensions
                 }
 
                 // Проверка без учета регистра
-                return _validAccountTypes.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
+                return ValidAccountTypes.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
             })
             .WithMessage("Указан некорректный тип счёта '{PropertyValue}'. " +
-                         $"Допустимые значения: {string.Join(", ", _validAccountTypes)}");
+                         $"Допустимые значения: {string.Join(", ", ValidAccountTypes)}");
     }
 
     public static IRuleBuilderOptions<T, string> MustBeValidCurrency<T>(this IRuleBuilder<T, string> ruleBuilder,
@@ -55,8 +55,8 @@ public static class ValidationExtensions
             {
                 return true;
             }
-            return _validTransactionType.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
+            return ValidTransactionType.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
         }).WithMessage("Указан некорректный тип счёта '{PropertyValue}'. " +
-                       $"Допустимые значения: {string.Join(", ", _validTransactionType)}");
+                       $"Допустимые значения: {string.Join(", ", ValidTransactionType)}");
     }
 }
