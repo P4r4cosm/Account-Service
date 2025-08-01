@@ -28,7 +28,7 @@ builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
 builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
 // Регистрируем AutoMapper и все профили из сборки
-builder.Services.AddAutoMapper(cfg => { }, typeof(Program));
+builder.Services.AddAutoMapper(_ => { }, typeof(Program));
 
 // Регистрируем MediatR и все его компоненты из сборки
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));

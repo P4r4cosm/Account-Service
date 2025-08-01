@@ -1,4 +1,5 @@
 using AccountService.Features.Accounts;
+using AccountService.Features.Transactions;
 using AccountService.Infrastructure.Verification;
 using FluentValidation;
 
@@ -8,6 +9,9 @@ public static class ValidationExtensions
 {
     private static readonly IReadOnlyCollection<string> _validAccountTypes =
         Enum.GetNames(typeof(AccountType)).ToList().AsReadOnly();
+    
+    private static readonly IReadOnlyCollection<string> _validTransactionType =
+        Enum.GetNames(typeof(TransactionType)).ToList().AsReadOnly();
 
     /// <summary>
     /// Проверяет, что строковое представление типа счёта является допустимым.
@@ -40,5 +44,19 @@ public static class ValidationExtensions
                 return await currencyService.IsSupportedAsync(currency, cancellationToken);
             })
             .WithMessage("Валюта '{PropertyValue}' не поддерживается системой.");
+    }
+
+    public static IRuleBuilderOptions<T, string?> MustBeValidTransactionType<T>(
+        this IRuleBuilder<T, string> ruleBuilder)
+    {
+        return ruleBuilder.Must(type =>
+        {
+            if (string.IsNullOrEmpty(type))
+            {
+                return true;
+            }
+            return _validTransactionType.Any(validType => validType.Equals(type, StringComparison.OrdinalIgnoreCase));
+        }).WithMessage("Указан некорректный тип счёта '{PropertyValue}'. " +
+                       $"Допустимые значения: {string.Join(", ", _validTransactionType)}");
     }
 }

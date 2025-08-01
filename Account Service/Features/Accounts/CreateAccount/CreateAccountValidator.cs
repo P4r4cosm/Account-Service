@@ -25,7 +25,8 @@ public class CreateAccountValidator: AbstractValidator<CreateAccountCommand>
         // Процентная ставка обязательна только для вкладов или кредитов
         RuleFor(x => x.InterestRate)
             .NotNull()
-            .When(x => x.AccountType == nameof(AccountType.Deposit) || x.AccountType == nameof(AccountType.Credit), ApplyConditionTo.CurrentValidator)
+            .When(x => x.AccountType == nameof(AccountType.Deposit) 
+                       || x.AccountType == nameof(AccountType.Credit), ApplyConditionTo.CurrentValidator)
             .WithMessage("Процентная ставка обязательна для вкладов и кредитов.");
     }
 }
