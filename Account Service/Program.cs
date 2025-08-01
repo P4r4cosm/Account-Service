@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using AccountService.Core.Behaviors;
@@ -6,6 +8,9 @@ using AccountService.Infrastructure.Persistence;
 using AccountService.Infrastructure.Verification;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
