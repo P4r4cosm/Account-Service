@@ -64,6 +64,8 @@ var app = builder.Build();
 
 // 3. Конфигурация конвейера обработки HTTP-запросов (Middleware)
 
+
+
 // Включаем Swagger только в режиме разработки для безопасности
 if (app.Environment.IsDevelopment())
 {
