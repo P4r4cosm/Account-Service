@@ -24,6 +24,17 @@ builder.Services.AddSingleton<IClientVerificationService, StubClientVerification
 builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
 builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
 
+// === Добавляем CORS: Разрешаем все origins, методы и заголовки ===
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy
+            .AllowAnyOrigin()    // Разрешить запросы с любого домена
+            .AllowAnyMethod()    // Разрешить все HTTP-методы (GET, POST, PUT, DELETE и т.д.)
+            .AllowAnyHeader();   // Разрешить все заголовки
+    });
+});
 
 // Устанавливаем глобальное правило: для каждого свойства (RuleFor)
 // прекращать валидацию после первой же неудавшейся проверки.
@@ -64,7 +75,8 @@ var app = builder.Build();
 
 // 3. Конфигурация конвейера обработки HTTP-запросов (Middleware)
 
-
+// Включаем CORS — обязательно ДО других middleware, обрабатывающих запросы
+app.UseCors("AllowAll");
 
 // Включаем Swagger только в режиме разработки для безопасности
 if (app.Environment.IsDevelopment())
