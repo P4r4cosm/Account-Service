@@ -61,8 +61,9 @@
 
 1.  **Склонируйте репозиторий:**
     ```bash
-    git clone https://github.com/P4r4cosm/Account-Service/tree/feature/assignment-2-auth-and-docker
+    git clone https://github.com/P4r4cosm/Account-Service.git
     cd Account-Service
+    git checkout feature/assignment-2-auth-and-docker  
     ```
 2.  **Запустите контейнеры:**
     ```bash
@@ -91,8 +92,9 @@
 
 1.  **Склонируйте репозиторий:**
     ```bash
-    git clone https://github.com/P4r4cosm/Account-Service/tree/feature/assignment-2-auth-and-docker
+    git clone https://github.com/P4r4cosm/Account-Service.git
     cd Account-Service
+    git checkout feature/assignment-2-auth-and-docker  
     ```
 
 2.  **Откройте решение в Visual Studio 2022:**
