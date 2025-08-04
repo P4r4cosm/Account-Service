@@ -2,8 +2,8 @@
   account-service:
     container_name: account-service
     build:
-      context: ./Account Service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./Account Service/Dockerfile
     ports:
       - "80:80"
     environment:
