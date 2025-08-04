@@ -75,7 +75,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(options =>
     {
         // Чтобы Swagger UI открывался по корневому URL (http://localhost:xxxx/)
-        options.RoutePrefix = string.Empty;
+        options.RoutePrefix = "swagger";
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "Account Service API V1");
         options.OAuthClientId(builder.Configuration["Swagger:ClientId"]);
     });
