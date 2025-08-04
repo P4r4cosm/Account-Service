@@ -2,7 +2,7 @@
   account-service:
     container_name: account-service
     build:
-      context: .
+      context: ./Account Service
       dockerfile: Dockerfile
     ports:
       - "80:80"

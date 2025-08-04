@@ -7,22 +7,16 @@ using MediatR;
 
 namespace AccountService.Shared.Behaviors;
 
-public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
+    : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
     where TResponse : MbResult
 {
-    private readonly IEnumerable<IValidator<TRequest>> _validators;
-
-    public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators)
-    {
-        _validators = validators;
-    }
-
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
         // Если валидаторов для данного запроса нет, просто продолжаем выполнение.
-        if (!_validators.Any())
+        if (!validators.Any())
         {
             return await next(cancellationToken);
         }
@@ -31,7 +25,7 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
 
         // 1. Асинхронно запускаем все валидаторы.
         ValidationResult[] validationResults = await Task.WhenAll(
-            _validators.Select(v => v.ValidateAsync(context, cancellationToken))
+            validators.Select(v => v.ValidateAsync(context, cancellationToken))
         );
 
         // 2. Собираем все ошибки валидации в один список.

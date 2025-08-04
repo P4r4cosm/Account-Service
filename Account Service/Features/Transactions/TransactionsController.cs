@@ -48,9 +48,13 @@ public class TransactionsController(IMediator mediator) : BaseApiController(medi
     {
         command.AccountId = accountId;
         var result = await Mediator.Send(command);
-        return HandleResult(result);
+
+        // Проверяем, что результат успешный и содержит значение, прежде чем обращаться к result.Value
+        return !result.IsSuccess ?
+            // Если произошла ошибка (например, валидации), используем стандартный обработчик
+            HandleResult(result) : HandleCreationResult(result, nameof(GetTransactionById), new { accountId = result.Value!.AccountId, transactionId = result.Value.Id });
     }
-    
+
     /// <summary>
     /// Получает выписку по счёту за указанный период.
     /// </summary>

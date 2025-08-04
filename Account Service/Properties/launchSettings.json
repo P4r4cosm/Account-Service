@@ -18,6 +18,17 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_URLS": "http://+:80",
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "launchUrl": "http://localhost:80",
+      "httpPort": 80,
+      "useSSL": false
     }
   }
 }

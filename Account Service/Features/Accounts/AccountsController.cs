@@ -18,10 +18,10 @@ namespace AccountService.Features.Accounts;
 [ApiController]
 [Produces("application/json")]
 [Route("api/[controller]")]
-public class AccountsController(IMediator mediator): BaseApiController(mediator)
+public class AccountsController(IMediator mediator) : BaseApiController(mediator)
 {
 
-     // --- CREATE ---
+    // --- CREATE ---
 
     /// <summary>
     /// Создает новый банковский счёт.
@@ -58,7 +58,11 @@ public class AccountsController(IMediator mediator): BaseApiController(mediator)
     public async Task<IActionResult> CreateAccount(CreateAccountCommand command)
     {
         var result = await Mediator.Send(command);
-        return HandleResult(result);
+
+        // Проверяем, что результат успешный и содержит значение, прежде чем обращаться к result.Value
+        return !result.IsSuccess ?
+            // Если произошла ошибка (например, валидации), используем стандартный обработчик
+            HandleResult(result) : HandleCreationResult(result, nameof(GetAccountById), new { accountId = result.Value!.Id });
     }
 
     // --- READ ---
@@ -112,8 +116,8 @@ public class AccountsController(IMediator mediator): BaseApiController(mediator)
         var result = await Mediator.Send(query);
         return HandleResult(result);
     }
-    
-    
+
+
     /// <summary>
     /// Получает значение конкретного поля счёта.
     /// </summary>
@@ -220,7 +224,7 @@ public class AccountsController(IMediator mediator): BaseApiController(mediator)
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
-    
+
     // --- DELETE ---
 
     /// <summary>
@@ -241,5 +245,5 @@ public class AccountsController(IMediator mediator): BaseApiController(mediator)
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
-    
+
 }
