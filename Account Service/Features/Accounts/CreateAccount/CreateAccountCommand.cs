@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using AccountService.Shared.Domain;
 using MediatR;
 
 namespace AccountService.Features.Accounts.CreateAccount;
@@ -8,7 +9,7 @@ namespace AccountService.Features.Accounts.CreateAccount;
 /// Данные для создания нового банковского счёта.
 /// </summary>
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
-public class CreateAccountCommand : IRequest<AccountDto>
+public class CreateAccountCommand :  IRequest<MbResult<AccountDto>>
 {
     /// <summary>
     /// Уникальный идентификатор владельца счёта (клиента).

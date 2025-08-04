@@ -2,11 +2,12 @@
 using System.Diagnostics.CodeAnalysis;
 using MediatR;
 using System.Text.Json.Serialization;
+using AccountService.Shared.Domain;
 
 namespace AccountService.Features.Accounts.PatchAccount;
 
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
-public class PatchAccountCommand : IRequest<Unit>
+public class PatchAccountCommand : IRequest<MbResult>
 {
     // ID из маршрута, не из тела запроса
     [JsonIgnore] 

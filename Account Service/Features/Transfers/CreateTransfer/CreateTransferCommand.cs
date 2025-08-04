@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using AccountService.Shared.Domain;
 using MediatR;
 
 namespace AccountService.Features.Transfers.CreateTransfer;
@@ -9,7 +10,7 @@ namespace AccountService.Features.Transfers.CreateTransfer;
 /// </summary>
 
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
-public class CreateTransferCommand : IRequest<Unit>
+public class CreateTransferCommand : IRequest<MbResult>
 {
     /// <summary>
     /// ID счёта, с которого будут списаны средства.

@@ -1,4 +1,5 @@
 using AccountService.Features.Transfers.CreateTransfer;
+using AccountService.Shared.Domain;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,7 +8,7 @@ namespace AccountService.Features.Transfers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class TransfersController(IMediator mediator) : ControllerBase
+public class TransfersController(IMediator mediator) : BaseApiController(mediator)
 {
     /// <summary>
     /// Выполняет перевод средств между двумя счетами.
@@ -34,16 +35,22 @@ public class TransfersController(IMediator mediator) : ControllerBase
     /// 
     /// </remarks>
     /// <param name="command">Данные для выполнения перевода.</param>
-    /// <response code="204">Перевод успешно выполнен.</response>
-    /// <response code="400">Некорректные данные в запросе или нарушение бизнес-правил (например, недостаток средств).</response>
-    /// <response code="404">Один из счетов (отправителя или получателя) не найден.</response>
+    /// <returns>Результат операции в формате MbResult (без значения).</returns>
+    /// <response code="200">Перевод успешно выполнен. В теле ответа возвращается успешный объект MbResult.</response>
+    /// <response code="400">Некорректные данные или нарушение бизнес-правил. В теле ответа возвращается объект MbResult с ошибкой.</response>
+    /// <response code="404">Один из счетов не найден. В теле ответа возвращается объект MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> CreateTransfer([FromBody] CreateTransferCommand command)
     {
-        await mediator.Send(command);
-        return NoContent(); // 204 No Content - идеальный ответ для успешной операции, которая не возвращает тело.
+        // Отправляем команду в MediatR, который вызовет CreateTransferHandler
+        var result = await Mediator.Send(command);
+        
+        // Передаем результат в наш централизованный обработчик
+        return HandleResult(result);
     }
 }

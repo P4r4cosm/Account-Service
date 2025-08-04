@@ -1,6 +1,7 @@
 using AccountService.Features.Transactions.GetAccountStatement;
 using AccountService.Features.Transactions.GetTransactionById;
 using AccountService.Features.Transactions.RegisterTransaction;
+using AccountService.Shared.Domain;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,7 +13,7 @@ namespace AccountService.Features.Transactions;
 [ApiController]
 [Route("api/accounts/{accountId:guid}/transactions")]
 [Produces("application/json")]
-public class TransactionsController(IMediator mediator) : ControllerBase
+public class TransactionsController(IMediator mediator) : BaseApiController(mediator) // Наследуемся от BaseApiController
 {
     /// <summary>
     /// Регистрирует новую транзакцию (пополнение или списание) для указанного счёта.
@@ -33,24 +34,21 @@ public class TransactionsController(IMediator mediator) : ControllerBase
     /// </remarks>
     /// <param name="accountId">ID счёта, по которому проводится транзакция.</param>
     /// <param name="command">Данные для создания транзакции.</param>
-    /// <returns>Информация о созданной транзакции.</returns>
-    /// <response code="201">Транзакция успешно создана и баланс обновлен. Возвращает созданную транзакцию.</response>
-    /// <response code="400">Некорректные данные в запросе или нарушение бизнес-правил (например, списание с недостаточным балансом).</response>
-    /// <response code="404">Счёт с указанным ID не найден.</response>
+    /// <returns>Результат операции в формате MbResult. При успехе 'value' содержит данные созданной транзакции.</returns>
+    /// <response code="201">Транзакция успешно создана. В теле ответа возвращается объект MbResult с данными транзакции.</response>
+    /// <response code="400">Некорректные данные или нарушение бизнес-правил. Возвращает MbResult с ошибкой.</response>
+    /// <response code="404">Счёт не найден. Возвращает MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
     [HttpPost]
-    [ProducesResponseType(typeof(TransactionDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(MbResult<TransactionDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RegisterTransaction([FromRoute] Guid accountId, [FromBody] RegisterTransactionCommand command)
     {
         command.AccountId = accountId;
-        var transactionDto = await mediator.Send(command);
-        
-        // Теперь эта ссылка полностью корректна и ведёт на работающий эндпоинт
-        return CreatedAtAction(
-            nameof(GetTransactionById), 
-            new { accountId = transactionDto.AccountId, transactionId = transactionDto.Id }, 
-            transactionDto);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
     }
     
     /// <summary>
@@ -75,33 +73,38 @@ public class TransactionsController(IMediator mediator) : ControllerBase
     /// </remarks>
     /// <param name="accountId">ID счёта, для которого запрашивается выписка.</param>
     /// <param name="query">Параметры для фильтрации по дате и пагинации.</param>
-    /// <returns>Полная выписка по счёту.</returns>
-    /// <response code="200">Запрос выполнен успешно. Возвращает объект выписки.</response>
-    /// <response code="404">Счёт с указанным ID не найден.</response>
+    /// <returns>Результат операции в формате MbResult. При успехе 'value' содержит полную выписку по счёту.</returns>
+    /// <response code="200">Запрос выполнен. Возвращает объект MbResult с данными выписки.</response>
+    /// <response code="404">Счёт не найден. Возвращает MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(AccountStatementDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(MbResult<AccountStatementDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetAccountStatement([FromRoute] Guid accountId, [FromQuery] GetAccountStatementQuery query)
     {
         query.AccountId = accountId;
-        var result = await mediator.Send(query);
-        return Ok(result);
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
     }
+
     /// <summary>
     /// Получает одну транзакцию по её ID в контексте указанного счёта.
     /// </summary>
     /// <param name="accountId">ID счёта, к которому относится транзакция.</param>
     /// <param name="transactionId">ID искомой транзакции.</param>
-    /// <returns>Данные одной транзакции.</returns>
-    /// <response code="200">Транзакция найдена и возвращена.</response>
-    /// <response code="404">Счёт или транзакция не найдены.</response>
-    [HttpGet("{transactionId:guid}", Name = "GetTransactionById")] // <-- Name = "GetTransactionById" важен для CreatedAtAction
-    [ProducesResponseType(typeof(TransactionDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    /// <returns>Результат операции в формате MbResult. При успехе 'value' содержит данные транзакции.</returns>
+    /// <response code="200">Транзакция найдена. Возвращает MbResult с данными транзакции.</response>
+    /// <response code="404">Счёт или транзакция не найдены. Возвращает MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
+    [HttpGet("{transactionId:guid}", Name = "GetTransactionById")]
+    [ProducesResponseType(typeof(MbResult<TransactionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetTransactionById([FromRoute] Guid accountId, [FromRoute] Guid transactionId)
     {
         var query = new GetTransactionByIdQuery(accountId, transactionId);
-        var transaction = await mediator.Send(query);
-        return Ok(transaction);
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
     }
 }

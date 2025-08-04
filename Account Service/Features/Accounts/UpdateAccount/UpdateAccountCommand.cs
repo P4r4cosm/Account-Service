@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
+using AccountService.Shared.Domain;
 using MediatR;
 
 namespace AccountService.Features.Accounts.UpdateAccount;
@@ -10,7 +11,7 @@ namespace AccountService.Features.Accounts.UpdateAccount;
 /// </summary>
 
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
-public class UpdateAccountCommand : IRequest<Unit>
+public class UpdateAccountCommand : IRequest<MbResult>
 {
 
     /// <summary>

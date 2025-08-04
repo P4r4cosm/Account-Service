@@ -1,3 +1,4 @@
+using AccountService.Shared.Domain;
 using MediatR;
 
 namespace AccountService.Features.Transactions.GetTransactionById;
@@ -5,7 +6,7 @@ namespace AccountService.Features.Transactions.GetTransactionById;
 /// <summary>
 /// Запрос на получение одной транзакции по её ID.
 /// </summary>
-public class GetTransactionByIdQuery(Guid accountId, Guid transactionId) : IRequest<TransactionDto>
+public class GetTransactionByIdQuery(Guid accountId, Guid transactionId) : IRequest<MbResult<TransactionDto>>
 {
     /// <summary>
     /// ID счёта, к которому относится транзакция.

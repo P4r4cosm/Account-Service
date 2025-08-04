@@ -1,45 +1,88 @@
+using System.Reflection;
+using AccountService.Shared.Domain;
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
+
 
 namespace AccountService.Shared.Behaviors;
 
-/// <summary>
-/// Pipeline-поведение для Mediatr, которое автоматически выполняет валидацию
-/// для всех входящих команд и запросов, у которых есть валидатор.
-/// </summary>
-public class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
-    : IPipelineBehavior<TRequest, TResponse>
+public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
-// Ограничение: TRequest должен быть командой/запросом Mediatr
+    where TResponse : MbResult
 {
+    private readonly IEnumerable<IValidator<TRequest>> _validators;
+
+    public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators)
+    {
+        _validators = validators;
+    }
+
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        // 1. Проверяем, есть ли вообще валидаторы для этого запроса
-        if (!validators.Any())
+        // Если валидаторов для данного запроса нет, просто продолжаем выполнение.
+        if (!_validators.Any())
         {
-            // Передаём управление дальше
             return await next(cancellationToken);
         }
 
-        // 2. Создаем контекст валидации
         var context = new ValidationContext<TRequest>(request);
 
-        // 3. запускаем все валидаторы и собираем результаты
-        var validationResults =
-            await Task.WhenAll(validators.Select(v => v.ValidateAsync(context, cancellationToken)));
+        // 1. Асинхронно запускаем все валидаторы.
+        ValidationResult[] validationResults = await Task.WhenAll(
+            _validators.Select(v => v.ValidateAsync(context, cancellationToken))
+        );
 
+        // 2. Собираем все ошибки валидации в один список.
+        List<ValidationFailure> failures = validationResults
+            .SelectMany(r => r.Errors)
+            .Where(f => f != null)
+            .ToList();
 
-        // 4. Собираем все ошибки из всех валидаторов в один список
-        var failures = validationResults.SelectMany(v => v.Errors).ToList();
-
-        // 5. Если нашлась ошибка/и
-        if (failures.Count != 0)
+        // Если ошибок нет, продолжаем выполнение.
+        if (failures.Count == 0)
         {
-            throw new ValidationException(failures);
+            return await next(cancellationToken);
         }
 
-        // 6. Если ошибок нет, передаем управление дальше по конвейеру.
-        return await next(cancellationToken);
+        // 3. Преобразуем список ошибок в словарь, как того требует MbError.
+        // Используем GroupBy и First() для гарантии, что для каждого поля будет только одна ошибка,
+        // что соответствует требованию "по каждому полю возвращалась только первая ошибка".
+        var validationErrors = failures
+            .GroupBy(f => f.PropertyName)
+            .ToDictionary(
+                g => g.Key,
+                g => g.First().ErrorMessage
+            );
+
+        // Создаем ошибку с деталями валидации.
+        var error = MbError.WithValidation(validationErrors);
+
+        // 4. Используем рефлексию для создания экземпляра TResponse с ошибкой.
+        // Это самый сложный момент. Мы вызываем статический метод Failure(MbError)
+        // на типе TResponse, который может быть MbResult или MbResult<TValue>.
+        // Так как мы не знаем TValue во время компиляции, рефлексия - единственный способ.
+
+        // Находим статический метод с именем "Failure", который принимает один параметр типа MbError.
+        var failureMethod = typeof(TResponse).GetMethod(
+            nameof(MbResult.Failure),
+            BindingFlags.Public | BindingFlags.Static,
+            [typeof(MbError)]
+        );
+
+        if (failureMethod is null)
+        {
+            // Эта ошибка означает, что наш Result-тип (TResponse) не соответствует ожидаемому контракту.
+            // Например, у него нет публичного статического метода Failure(MbError).
+            throw new InvalidOperationException(
+                $"Тип {typeof(TResponse).Name} не имеет публичного статического метода 'Failure' с параметром типа '{nameof(MbError)}'.");
+        }
+
+        // Вызываем статический метод 'Failure(error)' и приводим результат к нужному типу TResponse.
+        // Первый параметр `null` потому что метод статический.
+        var validationResult = (TResponse)failureMethod.Invoke(null, [error])!;
+
+        return validationResult;
     }
 }

@@ -7,6 +7,7 @@ namespace AccountService.Shared.Domain;
 /// </summary>
 /// <typeparam name="T">Тип элементов в результате.</typeparam>
 [SuppressMessage("ReSharper", "UnusedMember.Global")]
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 //Resharper решил, что поля не используются, хотя на самом деле используются в ответах для эндпоинтов, использующих пагинацию 
 public class PagedResult<T>(IEnumerable<T> items, int totalCount, int pageNumber, int pageSize)
 {

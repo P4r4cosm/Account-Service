@@ -1,7 +1,6 @@
 using AccountService.Infrastructure.Persistence;
 using AccountService.Infrastructure.Verification;
-using AccountService.Shared.Exceptions;
-using FluentValidation;
+using AccountService.Shared.Domain;
 using MediatR;
 
 namespace AccountService.Features.Accounts.PatchAccount;
@@ -9,14 +8,15 @@ namespace AccountService.Features.Accounts.PatchAccount;
 public class PatchAccountHandler(
     IAccountRepository accountRepository,
     IClientVerificationService clientVerificationService)
-    : IRequestHandler<PatchAccountCommand, Unit>
+    : IRequestHandler<PatchAccountCommand, MbResult>
 {
-    public async Task<Unit> Handle(PatchAccountCommand request, CancellationToken cancellationToken)
+    public async Task<MbResult> Handle(PatchAccountCommand request, CancellationToken cancellationToken)
     {
         var account = await accountRepository.GetByIdAsync(request.AccountId, cancellationToken);
         if (account is null)
         {
-            throw new NotFoundException($"Счёт {request.AccountId} не найден.");
+            return MbResult.Failure(
+                MbError.Custom("Account.NotFound", $"Счёт {request.AccountId} не найден."));
         }
 
         var hasChanges = false;
@@ -26,20 +26,22 @@ public class PatchAccountHandler(
         {
             if (!await clientVerificationService.ClientExistsAsync(request.OwnerId.Value, cancellationToken))
             {
-                throw new NotFoundException($"Клиент {request.OwnerId.Value} не найден.");
+                return MbResult.Failure(
+                    MbError.Custom("Owner.NotFound", $"Клиент {request.OwnerId.Value} не найден"));
             }
             account.OwnerId = request.OwnerId.Value;
             hasChanges = true;
         }
 
         // 2. Обновляем InterestRate, если он был передан
-        if (request.InterestRate.HasValue)
+        if (request.InterestRate.HasValue && request.InterestRate.Value != account.InterestRate)
         {
             if (account.AccountType is AccountType.Checking)
             {
-                throw new OperationNotAllowedException("Установка процентной ставки недоступна для текущих счетов.");
+                // Ошибка бизнес-логики - 400 Bad Request
+                return MbResult.Failure(MbError.Custom("Account.Update.Forbidden", "Установка процентной ставки недоступна для текущих счетов."));
             }
-            account.InterestRate = request.InterestRate;
+            account.InterestRate = request.InterestRate.Value;
             hasChanges = true;
         }
         
@@ -48,7 +50,8 @@ public class PatchAccountHandler(
         {
             if (request.CloseDate.Value < account.OpenedDate)
             {
-                throw new ValidationException("Дата закрытия не может быть раньше даты открытия.");
+                // Ошибка валидации данных - 400 Bad Request
+                return MbResult.Failure(MbError.Custom("Account.Validation", "Дата закрытия не может быть раньше даты открытия."));
             }
             account.CloseDate = request.CloseDate;
             hasChanges = true;
@@ -60,6 +63,6 @@ public class PatchAccountHandler(
             await accountRepository.UpdateAsync(account, cancellationToken);
         }
 
-        return Unit.Value;
+        return MbResult.Success();
     }
 }

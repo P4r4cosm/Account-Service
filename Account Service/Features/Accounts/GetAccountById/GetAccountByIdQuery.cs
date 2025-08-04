@@ -1,5 +1,9 @@
+using AccountService.Shared.Domain;
 using MediatR;
 
 namespace AccountService.Features.Accounts.GetAccountById;
 
-public record GetAccountByIdQuery(Guid AccountId) : IRequest<AccountDto?>;
+public class GetAccountByIdQuery : IRequest<MbResult<AccountDto>>
+{
+   public Guid AccountId { get; init; }
+}
