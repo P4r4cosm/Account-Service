@@ -12,12 +12,17 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AccountService.Features.Accounts;
 
-
+/// <summary>
+/// Контроллер для управления банковскими счетами.
+/// </summary>
 [ApiController]
 [Produces("application/json")]
 [Route("api/[controller]")]
-public class AccountsController(IMediator mediator) : ControllerBase
+public class AccountsController(IMediator mediator) : BaseApiController(mediator)
 {
+
+    // --- CREATE ---
+
     /// <summary>
     /// Создает новый банковский счёт.
     /// </summary>
@@ -40,60 +45,27 @@ public class AccountsController(IMediator mediator) : ControllerBase
     /// - interestRate: опционально, но если указано, должно быть >= 0
     /// </remarks>
     /// <param name="command">Данные для создания счёта.</param>
-    /// <returns>Информация о созданном счёте.</returns>
-    /// <response code="201">Возвращает созданный счёт. В заголовке Location указан URL нового счёта.</response>
-    /// <response code="400">Некорректные данные в запросе (ошибка валидации).</response>
+    /// <returns>Результат операции в формате MbResult. При успехе поле 'value' содержит данные созданного счёта.</returns>
+    /// <response code="201">Счёт успешно создан. В теле ответа возвращается объект MbResult с данными счёта.</response>
+    /// <response code="400">Некорректные данные в запросе. В теле ответа возвращается объект MbResult с деталями ошибки.</response>
+    /// <response code="404">Клиент с указанным ownerId не найден. В теле ответа возвращается объект MbResult с деталями ошибки.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
     [HttpPost]
-    [ProducesResponseType(typeof(AccountDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> CreateAccount([FromBody] CreateAccountCommand command)
+    [ProducesResponseType(typeof(MbResult<AccountDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CreateAccount(CreateAccountCommand command)
     {
-        //отправляем команду в mediator
-        var createdAccountDto = await mediator.Send(command);
-        // CreatedAtAction генерирует URL для получения только что созданного ресурса.
-        return CreatedAtAction(nameof(GetAccountById),
-            new { accountId = createdAccountDto.Id }, createdAccountDto);
+        var result = await Mediator.Send(command);
+
+        // Проверяем, что результат успешный и содержит значение, прежде чем обращаться к result.Value
+        return !result.IsSuccess ?
+            // Если произошла ошибка (например, валидации), используем стандартный обработчик
+            HandleResult(result) : HandleCreationResult(result, nameof(GetAccountById), new { accountId = result.Value!.Id });
     }
 
-    /// <summary>
-    /// Получает информацию о счёте по его ID.
-    /// </summary>
-    /// <param name="accountId">Идентификатор счёта (GUID).</param>
-    /// <returns>Информация о счёте.</returns>
-    /// <response code="200">Возвращает данные счёта.</response>
-    /// <response code="404">Счёт с указанным ID не найден.</response>
-    [HttpGet("{accountId:guid}")]
-    [ProducesResponseType(typeof(AccountDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetAccountById([FromRoute] Guid accountId)
-    {
-        // 1. Создаем объект запроса с ID из URL.
-        var query = new GetAccountByIdQuery(accountId);
-
-        // 2. Отправляем запрос
-        var resultDto = await mediator.Send(query);
-        
-        return Ok(resultDto); 
-    }
-    
-    /// <summary>
-    /// Получает значение конкретного поля счёта.
-    /// </summary>
-    /// <param name="accountId">ID счёта.</param>
-    /// <param name="fieldName">Имя поля (например, "balance", "currency", "ownerId"). Регистронезависимое.</param>
-    /// <returns>Значение запрошенного поля.</returns>
-    /// <response code="200">Возвращает значение поля. Может быть null, если поле не найдено или его значение null.</response>
-    /// <response code="404">Счёт с указанным ID не найден.</response>
-    [HttpGet("{accountId:guid}/{fieldName}")]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetAccountField([FromRoute] Guid accountId, [FromRoute] string fieldName)
-    {
-        var query = new GetAccountFieldQuery(accountId, fieldName);
-        var result = await mediator.Send(query);
-        
-        return result is not null ? Ok(result) : NotFound("Field not found");
-    }
+    // --- READ ---
 
     /// <summary>
     /// Получает постраничный список банковских счетов с фильтрацией.
@@ -111,58 +83,82 @@ public class AccountsController(IMediator mediator) : ControllerBase
     /// 
     /// В ответе вы получите объект, содержащий список счетов (`items`) и метаданные пагинации (`totalCount`, `pageNumber`, `totalPages` и т.д.).
     /// </remarks>
-    /// <param name="query">Объект с параметрами для фильтрации и пагинации. Все параметры опциональны.</param>
-    /// <returns>Постраничный результат со списком счетов (`PagedResult<AccountDto/>`).</returns>
-    /// <response code="200">Запрос выполнен успешно. Возвращает объект с данными и метаинформацией о пагинации. Поле `items` может быть пустым, если по заданным фильтрам ничего не найдено.</response>
-    /// <response code="400">Некорректные параметры запроса. Это может произойти, если, например, номер страницы меньше 1. Тело ответа будет содержать информацию об ошибках валидации.</response>
+    /// <param name="query">Параметры для фильтрации и пагинации.</param>
+    /// <returns>Результат операции в формате MbResult. При успехе 'value' содержит постраничный список счетов.</returns>
+    /// <response code="200">Запрос выполнен. В теле ответа возвращается объект MbResult с данными.</response>
+    /// <response code="400">Некорректные параметры запроса. В теле ответа возвращается объект MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(PagedResult<AccountDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MbResult<PagedResult<AccountDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetAccounts([FromQuery] GetAccountsQuery query)
     {
-        var resultDto = await mediator.Send(query);
-        return Ok(resultDto);
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Получает информацию о счёте по его ID.
+    /// </summary>
+    /// <param name="accountId">Идентификатор счёта (GUID).</param>
+    /// <returns>Результат операции в формате MbResult. При успехе 'value' содержит данные счёта.</returns>
+    /// <response code="200">Возвращает объект MbResult с данными счёта.</response>
+    /// <response code="404">Счёт не найден. Возвращает объект MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
+    [HttpGet("{accountId:guid}", Name = "GetAccountById")]
+    [ProducesResponseType(typeof(MbResult<AccountDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetAccountById([FromRoute] Guid accountId)
+    {
+        var query = new GetAccountByIdQuery { AccountId = accountId };
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
     }
 
 
     /// <summary>
-    /// Удаляет существующий банковский счёт.
+    /// Получает значение конкретного поля счёта.
     /// </summary>
-    /// <param name="accountId">Идентификатор удаляемого счёта (GUID).</param>
-    /// <response code="204">Счёт успешно удалён.</response>
-    /// <response code="404">Счёт с указанным ID не найден.</response>
-    [HttpDelete("{accountId:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteAccount([FromRoute] Guid accountId)
+    /// <param name="accountId">ID счёта.</param>
+    /// <param name="fieldName">Имя поля (например, "balance", "currency", "ownerId"). Регистронезависимое.</param>
+    /// <returns>Значение запрошенного поля.</returns>
+    /// <response code="200">Возвращает значение поля. Может быть null, если поле не найдено или его значение null.</response>
+    /// <response code="404">Счёт не найден. Возвращает объект MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
+    [HttpGet("{accountId:guid}/{fieldName}")]
+    [ProducesResponseType(typeof(MbResult<object?>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetAccountField([FromRoute] Guid accountId, [FromRoute] string fieldName)
     {
-        var command = new DeleteAccountCommand(accountId);
-
-        await mediator.Send(command); // Отправляем команду
-
-        // Если команда успешно выполнена (не бросила исключение),
-        // возвращаем 204 No Content.
-        return NoContent();
+        var query = new GetAccountFieldQuery(accountId, fieldName);
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
     }
-
 
     /// <summary>
     /// Проверяет наличие хотя бы одного счёта у клиента.
     /// </summary>
     /// <param name="ownerId">ID проверяемого клиента.</param>
-    /// <returns>True, если у клиента есть счета, иначе false.</returns>
-    /// <response code="200">Возвращает логическое значение.</response>
-    [HttpGet("{ownerId:guid}/has-accounts")]
-    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
-    public async Task<IActionResult> HasAccounts([FromRoute] Guid ownerId)
+    /// <returns>Результат операции в формате MbResult. При успехе 'value' содержит true или false.</returns>
+    /// <response code="200">Возвращает MbResult с логическим значением.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
+    [HttpGet("owner/{ownerId:guid}/has-accounts")]
+    [ProducesResponseType(typeof(MbResult<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CheckOwnerHasAccounts([FromRoute] Guid ownerId)
     {
         var query = new CheckOwnerHasAccountsQuery(ownerId);
-        var result = await mediator.Send(query);
-        return Ok(result);
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
     }
-    
+
+    // --- UPDATE ---
+
     /// <summary>
-    /// Полностью обновляет данные счёта (идемпотентная операция).
+    /// Полностью обновляет данные счёта (идемпотентная операция PUT).
     /// </summary>
     /// <remarks>
     /// Этот метод заменяет все изменяемые данные счёта на те, что переданы в теле запроса.
@@ -179,24 +175,25 @@ public class AccountsController(IMediator mediator) : ControllerBase
     /// </remarks>
     /// <param name="accountId">ID счёта для обновления.</param>
     /// <param name="command">Данные для обновления.</param>
-    /// <response code="204">Данные счёта успешно обновлены.</response>
-    /// <response code="400">Некорректные данные в запросе (ошибка валидации).</response>
-    /// <response code="404">Счёт с указанным ID не найден.</response>
+    /// <returns>Результат операции в формате MbResult (без значения).</returns>
+    /// <response code="200">Данные успешно обновлены. Возвращает успешный MbResult.</response>
+    /// <response code="400">Некорректные данные. Возвращает MbResult с ошибкой.</response>
+    /// <response code="404">Счёт не найден. Возвращает MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
     [HttpPut("{accountId:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UpdateAccount([FromRoute] Guid accountId, [FromBody] UpdateAccountCommand command)
     {
-        // Устанавливаем ID из маршрута в команду, чтобы они были синхронизированы
         command.AccountId = accountId;
-        await mediator.Send(command);
-        return NoContent();
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
     }
-    
-    
+
     /// <summary>
-    /// Частично обновляет данные счёта.
+    /// Частично обновляет данные счёта (PATCH).
     /// </summary>
     /// <remarks>
     /// Этот метод позволяет обновить одно или несколько полей счёта.
@@ -211,18 +208,42 @@ public class AccountsController(IMediator mediator) : ControllerBase
     /// </remarks>
     /// <param name="accountId">ID счёта для обновления.</param>
     /// <param name="command">Данные для обновления.</param>
-    /// <response code="204">Данные счёта успешно обновлены.</response>
-    /// <response code="400">Некорректные данные в запросе (ошибка валидации).</response>
-    /// <response code="404">Счёт или новый владелец не найден.</response>
+    /// <returns>Результат операции в формате MbResult (без значения).</returns>
+    /// <response code="200">Данные успешно обновлены. Возвращает успешный MbResult.</response>
+    /// <response code="400">Некорректные данные. Возвращает MbResult с ошибкой.</response>
+    /// <response code="404">Счёт не найден. Возвращает MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
     [HttpPatch("{accountId:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> PatchAccount([FromRoute] Guid accountId, [FromBody] PatchAccountCommand command)
     {
-        command.AccountId = accountId; // Устанавливаем ID из маршрута
-        await mediator.Send(command);
-        return NoContent();
+        command.AccountId = accountId;
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
     }
-    
+
+    // --- DELETE ---
+
+    /// <summary>
+    /// Удаляет существующий банковский счёт.
+    /// </summary>
+    /// <param name="accountId">Идентификатор удаляемого счёта.</param>
+    /// <returns>Результат операции в формате MbResult (без значения).</returns>
+    /// <response code="200">Счёт успешно удалён. Возвращает успешный MbResult.</response>
+    /// <response code="404">Счёт не найден. Возвращает MbResult с ошибкой.</response>
+    /// <response code="401">Пользователь не аутентифицирован.</response>
+    [HttpDelete("{accountId:guid}")]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> DeleteAccount([FromRoute] Guid accountId)
+    {
+        var command = new DeleteAccountCommand(accountId);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
 }

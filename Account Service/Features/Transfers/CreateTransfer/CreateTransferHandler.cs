@@ -1,45 +1,63 @@
-
 using AccountService.Features.Transactions;
-using AccountService.Infrastructure.Persistence;
-using AccountService.Shared.Exceptions;
+using AccountService.Infrastructure.Persistence; // Предполагается, что здесь IUnitOfWork
+using AccountService.Shared.Domain;
 using MediatR;
 
 namespace AccountService.Features.Transfers.CreateTransfer;
 
-public class CreateTransferHandler(IAccountRepository accountRepository) : IRequestHandler<CreateTransferCommand, Unit>
+public class CreateTransferHandler(
+    IAccountRepository accountRepository)
+    : IRequestHandler<CreateTransferCommand, MbResult> 
 {
-    // В будущем здесь может понадобиться IUnitOfWork для обеспечения транзакционности БД
-
-    public async Task<Unit> Handle(CreateTransferCommand request, CancellationToken cancellationToken)
+    public async Task<MbResult> Handle(CreateTransferCommand request, CancellationToken cancellationToken)
     {
-        // 1. Получаем оба счёта
+        // Получаем оба счёта
         var fromAccount = await accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
         if (fromAccount is null)
-            throw new NotFoundException($"Счёт списания {request.FromAccountId} не найден.");
+        {
+            return MbResult.Failure(MbError.Custom("Transfer.FromAccountNotFound", $"Счёт списания {request.FromAccountId} не найден."));
+        }
 
         var toAccount = await accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
         if (toAccount is null)
-            throw new NotFoundException($"Счёт зачисления {request.ToAccountId} не найден.");
+        {
+            return MbResult.Failure(MbError.Custom("Transfer.ToAccountNotFound", $"Счёт зачисления {request.ToAccountId} не найден."));
+        }
 
-        // 2. Выполняем бизнес-проверки
+        //  Выполняем бизнес-проверки, возвращая ошибки через MbResult
+        if (fromAccount.Id == toAccount.Id)
+        {
+            return MbResult.Failure(MbError.Custom("Transfer.SameAccount", "Перевод на тот же самый счёт невозможен."));
+        }
+
         if (fromAccount.CloseDate.HasValue)
-            throw new OperationNotAllowedException($"Счёт списания {fromAccount.Id} закрыт.");
+        {
+            return MbResult.Failure(MbError.Custom("Transfer.FromAccountClosed", $"Счёт списания {fromAccount.Id} закрыт."));
+        }
 
         if (toAccount.CloseDate.HasValue)
-            throw new OperationNotAllowedException($"Счёт зачисления {toAccount.Id} закрыт.");
+        {
+            return MbResult.Failure(MbError.Custom("Transfer.ToAccountClosed", $"Счёт зачисления {toAccount.Id} закрыт."));
+        }
 
         if (fromAccount.Currency != toAccount.Currency)
-            throw new OperationNotAllowedException("Переводы возможны только между счетами в одной валюте.");
+        {
+            return MbResult.Failure(MbError.Custom("Transfer.CurrencyMismatch", "Переводы возможны только между счетами в одной валюте."));
+        }
 
         if (fromAccount.Balance < request.Amount)
-            throw new OperationNotAllowedException("Недостаточно средств на счёте списания.");
+        {
+            return MbResult.Failure(MbError.Custom("Transfer.InsufficientFunds", "Недостаточно средств на счёте списания."));
+        }
 
-        // 3. Создаём две транзакции
+        // Создаём две транзакции
         var debitDescription = $"Перевод на счёт {toAccount.Id}.";
         if (!string.IsNullOrEmpty(request.Description)) debitDescription += $" {request.Description}";
 
         var creditDescription = $"Перевод со счёта {fromAccount.Id}.";
         if (!string.IsNullOrEmpty(request.Description)) creditDescription += $" {request.Description}";
+        
+        var timestamp = DateTime.UtcNow;
 
         var debitTransaction = new Transaction
         {
@@ -50,7 +68,7 @@ public class CreateTransferHandler(IAccountRepository accountRepository) : IRequ
             Currency = fromAccount.Currency,
             Type = TransactionType.Debit,
             Description = debitDescription,
-            Timestamp = DateTime.UtcNow
+            Timestamp = timestamp
         };
 
         var creditTransaction = new Transaction
@@ -62,20 +80,20 @@ public class CreateTransferHandler(IAccountRepository accountRepository) : IRequ
             Currency = toAccount.Currency,
             Type = TransactionType.Credit,
             Description = creditDescription,
-            Timestamp = DateTime.UtcNow
+            Timestamp = timestamp
         };
 
-        // 4. Обновляем балансы и добавляем транзакции
+        //  Обновляем балансы и добавляем транзакции
         fromAccount.Balance -= request.Amount;
         fromAccount.Transactions.Add(debitTransaction);
 
         toAccount.Balance += request.Amount;
         toAccount.Transactions.Add(creditTransaction);
-
-        // 5. Сохраняем изменения
         await accountRepository.UpdateAsync(fromAccount, cancellationToken);
         await accountRepository.UpdateAsync(toAccount, cancellationToken);
+        
 
-        return Unit.Value;
+        // Возвращаем успешный результат
+        return MbResult.Success();
     }
 }

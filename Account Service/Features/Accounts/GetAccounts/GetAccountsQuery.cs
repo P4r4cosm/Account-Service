@@ -9,7 +9,7 @@ namespace AccountService.Features.Accounts.GetAccounts;
 /// </summary>
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
-public class GetAccountsQuery : IRequest<PagedResult<AccountDto>>
+public class GetAccountsQuery : IRequest<MbResult<PagedResult<AccountDto>>>
 {
     /// <summary>
     /// Фильтр по ID владельца счёта.
@@ -20,7 +20,7 @@ public class GetAccountsQuery : IRequest<PagedResult<AccountDto>>
     /// <summary>
     /// Фильтр по типу счёта.
     /// </summary>
-    /// <example>Deposit</example>
+    /// <example>Checking</example>
     public string? AccountType { get; set; }
 
     /// <summary>
@@ -32,7 +32,7 @@ public class GetAccountsQuery : IRequest<PagedResult<AccountDto>>
     /// <summary>
     /// Фильтр по минимальному балансу (включительно).
     /// </summary>
-    /// <example>5000</example>
+    /// <example>0</example>
     public decimal? BalanceGte { get; set; } // gte = Greater Than or Equal
 
     /// <summary>
@@ -50,7 +50,7 @@ public class GetAccountsQuery : IRequest<PagedResult<AccountDto>>
     /// <summary>
     /// Фильтр по конечной дате открытия счёта (включительно).
     /// </summary>
-    /// <example>2025-07-29</example>
+    /// <example>2025-12-31</example>
     public DateTime? OpeningDateTo { get; set; }
     
     /// <summary>

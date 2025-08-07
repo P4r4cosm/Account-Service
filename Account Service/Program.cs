@@ -1,8 +1,8 @@
-using System.Reflection;
 using System.Text.Json.Serialization;
 using AccountService.Infrastructure.Persistence;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Behaviors;
+using AccountService.Shared.Extensions;
 using AccountService.Shared.Filters;
 using FluentValidation;
 using MediatR;
@@ -24,8 +24,27 @@ builder.Services.AddSingleton<IClientVerificationService, StubClientVerification
 builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
 builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
 
+// === Добавляем CORS: Разрешаем все origins, методы и заголовки ===
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy
+            .AllowAnyOrigin() // Разрешить запросы с любого домена
+            .AllowAnyMethod() // Разрешить все HTTP-методы (GET, POST, PUT, DELETE и т.д.)
+            .AllowAnyHeader(); // Разрешить все заголовки
+    });
+});
+
+builder.Services.AddAuthorization();
+builder.Services.AddAuthenticationBearer(builder.Configuration);
+
+// Устанавливаем глобальное правило: для каждого свойства (RuleFor)
+// прекращать валидацию после первой же неудавшейся проверки.
+ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
+
 // Регистрируем FluentValidation и все валидаторы из сборки
-builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Регистрируем AutoMapper и все профили из сборки
 builder.Services.AddAutoMapper(_ => { }, typeof(Program));
@@ -38,26 +57,15 @@ builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBeh
 
 // Настраиваем Swagger (Swashbuckle)
 builder.Services.AddEndpointsApiExplorer(); // Необходимо для Swagger
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
-    {
-        Version = "v1",
-        Title = "Account Service API",
-        Description =
-            "Микросервис для управления банковскими счетами и транзакциями в соответствии с заданием Модуль Банка."
-    });
-
-    // Включаем отображение комментариев в интерфейсе Swagger
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
-});
+builder.Services.AddSwaggerGetWithAuth(builder.Configuration);
 
 // 2. Построение приложения
 var app = builder.Build();
 
 // 3. Конфигурация конвейера обработки HTTP-запросов (Middleware)
+
+// Включаем CORS — обязательно ДО других middleware, обрабатывающих запросы
+app.UseCors("AllowAll");
 
 // Включаем Swagger только в режиме разработки для безопасности
 if (app.Environment.IsDevelopment())
@@ -67,13 +75,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(options =>
     {
         // Чтобы Swagger UI открывался по корневому URL (http://localhost:xxxx/)
-        options.RoutePrefix = string.Empty;
+        options.RoutePrefix = "swagger";
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "Account Service API V1");
+        options.OAuthClientId(builder.Configuration["Swagger:ClientId"]);
     });
 }
 
-app.UseHttpsRedirection(); // Перенаправляет HTTP на HTTPS
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapControllers(); // Сопоставляет запросы с методами контроллеров
+
+app.MapControllers().RequireAuthorization(); // Сопоставляет запросы с методами контроллеров
 
 app.Run(); // Запускает приложение
