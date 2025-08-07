@@ -1,12 +1,15 @@
-using AccountService.Infrastructure.Persistence;
+using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Domain;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace AccountService.Features.Accounts.UpdateAccount;
 
 public class UpdateAccountHandler(
     IAccountRepository accountRepository,
+    IUnitOfWork unitOfWork,
+    ILogger<UpdateAccountHandler> logger,
     IClientVerificationService clientVerificationService)
     : IRequestHandler<UpdateAccountCommand, MbResult>
 {
@@ -41,6 +44,22 @@ public class UpdateAccountHandler(
         account.CloseDate = request.CloseDate;     // Если в запросе придет null, дата закрытия сотрется.
         
         await accountRepository.UpdateAsync(account, cancellationToken);
+        
+        try
+        {
+            // Фиксируем все изменения в базе данных
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            logger.LogWarning(ex, "Конфликт параллельного доступа при обновлении счёта {AccountId}", request.AccountId);
+            return MbResult.Failure(MbError.Custom("Account.Conflict", "Не удалось обновить счёт, так как его данные были изменены. Пожалуйста, обновите информацию и попробуйте снова."));
+        }
+        catch (DbUpdateException ex)
+        {
+            logger.LogError(ex, "Ошибка базы данных при обновлении счёта {AccountId}", request.AccountId);
+            return MbResult.Failure(MbError.Custom("Database.Error", "Произошла ошибка при сохранении изменений в базу данных."));
+        }
         return MbResult.Success();
     }
 }

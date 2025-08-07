@@ -10,6 +10,8 @@ public class UpdateAccountValidator:  AbstractValidator<UpdateAccountCommand>
     
     public UpdateAccountValidator()
     {
+        RuleFor(x => x.AccountId)
+            .NotEmpty().WithMessage("ID счёта не может быть пустым.");
         // проверка guid счёта
         RuleFor(x => x.AccountId)
             .NotEmpty().WithMessage("ID счёта не может быть пустым.");

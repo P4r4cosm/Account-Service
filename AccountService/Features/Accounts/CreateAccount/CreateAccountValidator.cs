@@ -12,7 +12,7 @@ public class CreateAccountValidator: AbstractValidator<CreateAccountCommand>
 {
     public CreateAccountValidator(ICurrencyService currencyService) 
     {
-        RuleFor(x => x.OwnerId).NotEmpty();
+        RuleFor(x => x.OwnerId).NotEmpty().WithMessage("ID клиента не может быть пустым.");
         
         //проверка валюты
         RuleFor(x => x.Currency)

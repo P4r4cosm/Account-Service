@@ -1,11 +1,13 @@
-using AccountService.Infrastructure.Persistence;
+using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
 using AutoMapper;
 using MediatR;
 
 namespace AccountService.Features.Transactions.GetAccountStatement;
 
-public class GetAccountStatementHandler(IAccountRepository accountRepository, IMapper mapper)
+public class GetAccountStatementHandler(IAccountRepository accountRepository,
+    ITransactionRepository transactionRepository,
+    IMapper mapper)
     : IRequestHandler<GetAccountStatementQuery, MbResult<AccountStatementDto>>
 {
     public async Task<MbResult<AccountStatementDto>> Handle(GetAccountStatementQuery request,
@@ -18,40 +20,21 @@ public class GetAccountStatementHandler(IAccountRepository accountRepository, IM
                 MbError.Custom("Account.NotFound", $"Счёт {request.AccountId} не найден."));
         }
 
-        // --- Логика фильтрации и пагинации транзакций ---
-        var queryableTransactions = account.Transactions.AsQueryable();
-
-        if (request.StartDate.HasValue)
-        {
-            queryableTransactions = queryableTransactions.Where(t => t.Timestamp >= request.StartDate.Value);
-        }
-
-        if (request.EndDate.HasValue)
-        {
-            queryableTransactions = queryableTransactions.Where(t => t.Timestamp <= request.EndDate.Value);
-        }
-
-        var sortedTransactions = queryableTransactions.OrderByDescending(t => t.Timestamp);
-        var totalCount = sortedTransactions.Count();
-        var pagedTransactions = sortedTransactions
-            .Skip((request.PageNumber - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToList();
+        var pagedTransactions = await transactionRepository.GetPagedStatementAsync(
+            request.AccountId, request.StartDate, request.EndDate, 
+            request.PageNumber, request.PageSize, cancellationToken);
 
 
-        // 1. Создаем DTO для пагинированного списка транзакций
-        var transactionsDto = mapper.Map<List<TransactionDto>>(pagedTransactions);
+        // Маппим результат, который уже содержит пагинированные данные
+        var transactionsDto = mapper.Map<List<TransactionDto>>(pagedTransactions.Items);
         var pagedTransactionResult = new PagedResult<TransactionDto>(
             transactionsDto,
-            totalCount,
-            request.PageNumber,
-            request.PageSize
+            pagedTransactions.TotalCount,
+            pagedTransactions.PageNumber,
+            pagedTransactions.PageSize
         );
-
-        // 2. Маппим основную информацию о счёте из доменной модели
+        
         var statementDto = mapper.Map<AccountStatementDto>(account);
-
-        // 3. Устанавливаем оставшееся поле, которое мы проигнорировали в маппинге
         statementDto.Transactions = pagedTransactionResult;
 
         return MbResult<AccountStatementDto>.Success(statementDto);

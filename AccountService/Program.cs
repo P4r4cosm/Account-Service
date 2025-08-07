@@ -1,7 +1,10 @@
 using System.Text.Json.Serialization;
 using AccountService.Infrastructure.Persistence;
+using AccountService.Infrastructure.Persistence.Interfaces;
+using AccountService.Infrastructure.Persistence.Repositories;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Behaviors;
+using AccountService.Shared.Domain;
 using AccountService.Shared.Extensions;
 using AccountService.Shared.Filters;
 using FluentValidation;
@@ -25,12 +28,19 @@ builder.Services.AddSingleton<IClientVerificationService, StubClientVerification
 builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
 
 
-builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
-
-
 // Postgres
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Repository
+builder.Services.AddScoped<IAccountRepository, PostgresAccountRepository>();
+builder.Services.AddScoped<ITransactionRepository, PostgresTransactionRepository>();
+
+// IUnitOfWork
+builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+
+
+
 
 // === Добавляем CORS: Разрешаем все origins, методы и заголовки ===
 builder.Services.AddCors(options =>

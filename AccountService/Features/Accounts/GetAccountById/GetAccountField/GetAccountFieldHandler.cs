@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using AccountService.Infrastructure.Persistence;
+using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
 using MediatR;
 

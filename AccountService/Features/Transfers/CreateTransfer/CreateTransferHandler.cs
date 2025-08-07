@@ -1,13 +1,18 @@
+using System.Data;
 using AccountService.Features.Transactions;
-using AccountService.Infrastructure.Persistence; // Предполагается, что здесь IUnitOfWork
+using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace AccountService.Features.Transfers.CreateTransfer;
 
 public class CreateTransferHandler(
-    IAccountRepository accountRepository)
-    : IRequestHandler<CreateTransferCommand, MbResult> 
+    IAccountRepository accountRepository,
+    ITransactionRepository transactionRepository,
+    IUnitOfWork unitOfWork,
+    ILogger<CreateTransferHandler> logger)
+    : IRequestHandler<CreateTransferCommand, MbResult>
 {
     public async Task<MbResult> Handle(CreateTransferCommand request, CancellationToken cancellationToken)
     {
@@ -15,13 +20,15 @@ public class CreateTransferHandler(
         var fromAccount = await accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
         if (fromAccount is null)
         {
-            return MbResult.Failure(MbError.Custom("Transfer.FromAccountNotFound", $"Счёт списания {request.FromAccountId} не найден."));
+            return MbResult.Failure(MbError.Custom("Transfer.FromAccountNotFound",
+                $"Счёт списания {request.FromAccountId} не найден."));
         }
 
         var toAccount = await accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
         if (toAccount is null)
         {
-            return MbResult.Failure(MbError.Custom("Transfer.ToAccountNotFound", $"Счёт зачисления {request.ToAccountId} не найден."));
+            return MbResult.Failure(MbError.Custom("Transfer.ToAccountNotFound",
+                $"Счёт зачисления {request.ToAccountId} не найден."));
         }
 
         //  Выполняем бизнес-проверки, возвращая ошибки через MbResult
@@ -32,22 +39,26 @@ public class CreateTransferHandler(
 
         if (fromAccount.CloseDate.HasValue)
         {
-            return MbResult.Failure(MbError.Custom("Transfer.FromAccountClosed", $"Счёт списания {fromAccount.Id} закрыт."));
+            return MbResult.Failure(MbError.Custom("Transfer.FromAccountClosed",
+                $"Счёт списания {fromAccount.Id} закрыт."));
         }
 
         if (toAccount.CloseDate.HasValue)
         {
-            return MbResult.Failure(MbError.Custom("Transfer.ToAccountClosed", $"Счёт зачисления {toAccount.Id} закрыт."));
+            return MbResult.Failure(MbError.Custom("Transfer.ToAccountClosed",
+                $"Счёт зачисления {toAccount.Id} закрыт."));
         }
 
         if (fromAccount.Currency != toAccount.Currency)
         {
-            return MbResult.Failure(MbError.Custom("Transfer.CurrencyMismatch", "Переводы возможны только между счетами в одной валюте."));
+            return MbResult.Failure(MbError.Custom("Transfer.CurrencyMismatch",
+                "Переводы возможны только между счетами в одной валюте."));
         }
 
         if (fromAccount.Balance < request.Amount)
         {
-            return MbResult.Failure(MbError.Custom("Transfer.InsufficientFunds", "Недостаточно средств на счёте списания."));
+            return MbResult.Failure(MbError.Custom("Transfer.InsufficientFunds",
+                "Недостаточно средств на счёте списания."));
         }
 
         // Создаём две транзакции
@@ -56,14 +67,14 @@ public class CreateTransferHandler(
 
         var creditDescription = $"Перевод со счёта {fromAccount.Id}.";
         if (!string.IsNullOrEmpty(request.Description)) creditDescription += $" {request.Description}";
-        
+
         var timestamp = DateTime.UtcNow;
 
         var debitTransaction = new Transaction
         {
             Id = Guid.NewGuid(),
             AccountId = fromAccount.Id,
-            CounterpartyAccountId = toAccount.Id, 
+            CounterpartyAccountId = toAccount.Id,
             Amount = request.Amount,
             Currency = fromAccount.Currency,
             Type = TransactionType.Debit,
@@ -89,11 +100,34 @@ public class CreateTransferHandler(
 
         toAccount.Balance += request.Amount;
         toAccount.Transactions.Add(creditTransaction);
-        await accountRepository.UpdateAsync(fromAccount, cancellationToken);
-        await accountRepository.UpdateAsync(toAccount, cancellationToken);
-        
+        try
+        {
+            // НАЧИНАЕМ ТРАНЗАКЦИЮ ЧЕРЕЗ ИНТЕРФЕЙС
+            await unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
-        // Возвращаем успешный результат
-        return MbResult.Success();
+            await transactionRepository.AddAsync(debitTransaction, cancellationToken);
+            await transactionRepository.AddAsync(creditTransaction, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // ФИКСИРУЕМ ТРАНЗАКЦИЮ ЧЕРЕЗ ИНТЕРФЕЙС
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            return MbResult.Success();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // Обработка конфликта оптимистической блокировки (Требование #6)
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogWarning(ex, "Конфликт параллельного доступа при выполнении перевода со счёта {FromAccountId} на {ToAccountId}", request.FromAccountId, request.ToAccountId);
+            return MbResult.Failure(MbError.Custom("Transfer.Conflict", "Не удалось выполнить перевод, так как данные одного из счетов были изменены другим процессом. Пожалуйста, попробуйте снова."));
+        }
+        catch (Exception ex)
+        {
+            // Обработка всех остальных непредвиденных ошибок
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Непредвиденная ошибка при выполнении перевода со счёта {FromAccountId} на {ToAccountId}", request.FromAccountId, request.ToAccountId);
+            return MbResult.Failure(MbError.Custom("Transfer.Error", "При выполнении перевода произошла непредвиденная системная ошибка."));
+        }
     }
 }
