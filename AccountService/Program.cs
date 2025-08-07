@@ -6,6 +6,7 @@ using AccountService.Shared.Extensions;
 using AccountService.Shared.Filters;
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +23,14 @@ builder.Services.AddControllers(options => { options.Filters.Add<ApiExceptionFil
 // Регистрируем сервисы-заглушки
 builder.Services.AddSingleton<IClientVerificationService, StubClientVerificationService>();
 builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
+
+
 builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
+
+
+// Postgres
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // === Добавляем CORS: Разрешаем все origins, методы и заголовки ===
 builder.Services.AddCors(options =>
