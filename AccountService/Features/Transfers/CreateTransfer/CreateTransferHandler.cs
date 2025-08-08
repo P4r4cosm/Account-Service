@@ -16,118 +16,129 @@ public class CreateTransferHandler(
 {
     public async Task<MbResult> Handle(CreateTransferCommand request, CancellationToken cancellationToken)
     {
-        // Получаем оба счёта
-        var fromAccount = await accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
-        if (fromAccount is null)
+        if (request.Amount <= 0)
         {
-            return MbResult.Failure(MbError.Custom("Transfer.FromAccountNotFound",
-                $"Счёт списания {request.FromAccountId} не найден."));
+            return MbResult.Failure(MbError.Custom("Transfer.InvalidAmount", "Сумма перевода должна быть больше нуля."));
         }
 
-        var toAccount = await accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
-        if (toAccount is null)
-        {
-            return MbResult.Failure(MbError.Custom("Transfer.ToAccountNotFound",
-                $"Счёт зачисления {request.ToAccountId} не найден."));
-        }
+        // Загружаем оба счёта в одной операции с блокировкой для сериализуемой изоляции
+        await unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
-        //  Выполняем бизнес-проверки, возвращая ошибки через MbResult
-        if (fromAccount.Id == toAccount.Id)
-        {
-            return MbResult.Failure(MbError.Custom("Transfer.SameAccount", "Перевод на тот же самый счёт невозможен."));
-        }
-
-        if (fromAccount.CloseDate.HasValue)
-        {
-            return MbResult.Failure(MbError.Custom("Transfer.FromAccountClosed",
-                $"Счёт списания {fromAccount.Id} закрыт."));
-        }
-
-        if (toAccount.CloseDate.HasValue)
-        {
-            return MbResult.Failure(MbError.Custom("Transfer.ToAccountClosed",
-                $"Счёт зачисления {toAccount.Id} закрыт."));
-        }
-
-        if (fromAccount.Currency != toAccount.Currency)
-        {
-            return MbResult.Failure(MbError.Custom("Transfer.CurrencyMismatch",
-                "Переводы возможны только между счетами в одной валюте."));
-        }
-
-        if (fromAccount.Balance < request.Amount)
-        {
-            return MbResult.Failure(MbError.Custom("Transfer.InsufficientFunds",
-                "Недостаточно средств на счёте списания."));
-        }
-
-        // Создаём две транзакции
-        var debitDescription = $"Перевод на счёт {toAccount.Id}.";
-        if (!string.IsNullOrEmpty(request.Description)) debitDescription += $" {request.Description}";
-
-        var creditDescription = $"Перевод со счёта {fromAccount.Id}.";
-        if (!string.IsNullOrEmpty(request.Description)) creditDescription += $" {request.Description}";
-
-        var timestamp = DateTime.UtcNow;
-
-        var debitTransaction = new Transaction
-        {
-            Id = Guid.NewGuid(),
-            AccountId = fromAccount.Id,
-            CounterpartyAccountId = toAccount.Id,
-            Amount = request.Amount,
-            Currency = fromAccount.Currency,
-            Type = TransactionType.Debit,
-            Description = debitDescription,
-            Timestamp = timestamp
-        };
-
-        var creditTransaction = new Transaction
-        {
-            Id = Guid.NewGuid(),
-            AccountId = toAccount.Id,
-            CounterpartyAccountId = fromAccount.Id,
-            Amount = request.Amount,
-            Currency = toAccount.Currency,
-            Type = TransactionType.Credit,
-            Description = creditDescription,
-            Timestamp = timestamp
-        };
-
-        //  Обновляем балансы и добавляем транзакции
-        fromAccount.Balance -= request.Amount;
-        fromAccount.Transactions.Add(debitTransaction);
-
-        toAccount.Balance += request.Amount;
-        toAccount.Transactions.Add(creditTransaction);
         try
         {
-            // НАЧИНАЕМ ТРАНЗАКЦИЮ ЧЕРЕЗ ИНТЕРФЕЙС
-            await unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            
+
+            var fromAccount = await accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
+            if (fromAccount is null)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return MbResult.Failure(MbError.Custom("Transfer.NotFound",
+                    $"Счёт списания {request.FromAccountId} не найден."));
+            }
+            var toAccount = await accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
+            if (toAccount is null)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return MbResult.Failure(MbError.Custom("Transfer.NotFound",
+                    $"Счёт зачисления {request.ToAccountId} не найден."));
+            }
+
+            // Проверки бизнес-логики
+            if (fromAccount.Id == toAccount.Id)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return MbResult.Failure(MbError.Custom("Transfer.Validation", "Перевод на тот же счёт невозможен."));
+            }
+
+            if (fromAccount.CloseDate.HasValue)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return MbResult.Failure(MbError.Custom("Transfer.Validation",
+                    $"Счёт списания {fromAccount.Id} закрыт."));
+            }
+
+            if (toAccount.CloseDate.HasValue)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return MbResult.Failure(MbError.Custom("Transfer.Validation",
+                    $"Счёт зачисления {toAccount.Id} закрыт."));
+            }
+
+            if (fromAccount.Currency != toAccount.Currency)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return MbResult.Failure(MbError.Custom("Transfer.Validation",
+                    "Переводы возможны только между счетами в одной валюте."));
+            }
+
+            if (fromAccount.Balance < request.Amount)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return MbResult.Failure(MbError.Custom("Transfer.Validation",
+                    $"Недостаточно средств на счёте {fromAccount.Id}."));
+            }
+
+            // Формируем описания
+            var timestamp = DateTime.UtcNow;
+            var debitDescription = $"Перевод на счёт {toAccount.Id}." + (string.IsNullOrEmpty(request.Description) ? "" : $" {request.Description}");
+            var creditDescription = $"Перевод со счёта {fromAccount.Id}." + (string.IsNullOrEmpty(request.Description) ? "" : $" {request.Description}");
+
+            // Создаём транзакции
+            var debitTransaction = new Transaction
+            {
+                Id = Guid.NewGuid(),
+                AccountId = fromAccount.Id,
+                CounterpartyAccountId = toAccount.Id,
+                Amount = request.Amount,
+                Currency = fromAccount.Currency,
+                Type = TransactionType.Debit,
+                Description = debitDescription,
+                Timestamp = timestamp
+            };
+
+            var creditTransaction = new Transaction
+            {
+                Id = Guid.NewGuid(),
+                AccountId = toAccount.Id,
+                CounterpartyAccountId = fromAccount.Id,
+                Amount = request.Amount,
+                Currency = toAccount.Currency,
+                Type = TransactionType.Credit,
+                Description = creditDescription,
+                Timestamp = timestamp
+            };
+
+            // Обновляем балансы
+            fromAccount.Balance -= request.Amount;
+            toAccount.Balance += request.Amount;
+
+            // Добавляем транзакции
+            fromAccount.Transactions.Add(debitTransaction);
+            toAccount.Transactions.Add(creditTransaction);
 
             await transactionRepository.AddAsync(debitTransaction, cancellationToken);
             await transactionRepository.AddAsync(creditTransaction, cancellationToken);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
-
-            // ФИКСИРУЕМ ТРАНЗАКЦИЮ ЧЕРЕЗ ИНТЕРФЕЙС
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return MbResult.Success();
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            // Обработка конфликта оптимистической блокировки (Требование #6)
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
-            logger.LogWarning(ex, "Конфликт параллельного доступа при выполнении перевода со счёта {FromAccountId} на {ToAccountId}", request.FromAccountId, request.ToAccountId);
-            return MbResult.Failure(MbError.Custom("Transfer.Conflict", "Не удалось выполнить перевод, так как данные одного из счетов были изменены другим процессом. Пожалуйста, попробуйте снова."));
+            logger.LogWarning(ex, "Конфликт параллельного доступа при переводе со счёта {FromAccountId} на {ToAccountId}", 
+                request.FromAccountId, request.ToAccountId);
+            return MbResult.Failure(MbError.Custom(
+                "Transfer.Conflict", 
+                "Данные одного из счетов были изменены параллельно. Повторите операцию."));
         }
         catch (Exception ex)
         {
-            // Обработка всех остальных непредвиденных ошибок
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
-            logger.LogError(ex, "Непредвиденная ошибка при выполнении перевода со счёта {FromAccountId} на {ToAccountId}", request.FromAccountId, request.ToAccountId);
-            return MbResult.Failure(MbError.Custom("Transfer.Error", "При выполнении перевода произошла непредвиденная системная ошибка."));
+            logger.LogError(ex, "Ошибка при выполнении перевода со счёта {FromAccountId} на {ToAccountId}", 
+                request.FromAccountId, request.ToAccountId);
+            return MbResult.Failure(MbError.Custom("Transfer.Error", "Произошла системная ошибка при выполнении перевода."));
         }
     }
 }
