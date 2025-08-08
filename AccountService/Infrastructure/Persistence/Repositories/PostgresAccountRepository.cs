@@ -56,7 +56,7 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
     {
         // 1. Начинаем строить запрос от таблицы в БД.
         // Используем AsNoTracking, так как это read-only операция.
-        IQueryable<Account> query = dbContext.Accounts.AsNoTracking();
+        var query = dbContext.Accounts.AsNoTracking();
 
         // 2. Динамически добавляем условия WHERE, если фильтры были переданы.
         // Это все будет транслировано в SQL.

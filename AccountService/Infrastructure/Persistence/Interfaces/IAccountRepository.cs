@@ -9,10 +9,12 @@ namespace AccountService.Infrastructure.Persistence.Interfaces;
     "UnusedParameter.Global")] //Resharper жалуется на неиспользование токена в реализациях, но он добавлен на будущее
 public interface IAccountRepository
 {
-    Task<Features.Accounts.Account?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
-    Task<IEnumerable<Features.Accounts.Account>> GetAllAsync(CancellationToken cancellationToken);
-    Task AddAsync(Features.Accounts.Account account, CancellationToken cancellationToken);
-    Task DeleteAsync(Features.Accounts.Account account, CancellationToken cancellationToken);
+    Task<Account?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    
+    // Метод использующийся в InMemoryAccountRepository
+    // Task<IEnumerable<Account>> GetAllAsync(CancellationToken cancellationToken);
+    Task AddAsync(Account account, CancellationToken cancellationToken);
+    Task DeleteAsync(Account account, CancellationToken cancellationToken);
 
     Task<bool> OwnerHasAccountsAsync(Guid ownerId, CancellationToken cancellationToken);
 
@@ -20,5 +22,5 @@ public interface IAccountRepository
         GetAccountsQuery filters, 
         CancellationToken cancellationToken);
 
-    Task UpdateAsync(Features.Accounts.Account account, CancellationToken cancellationToken);
+    Task UpdateAsync(Account account, CancellationToken cancellationToken);
 }

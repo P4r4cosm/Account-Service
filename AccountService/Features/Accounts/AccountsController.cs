@@ -8,6 +8,7 @@ using AccountService.Features.Accounts.PatchAccount;
 using AccountService.Features.Accounts.UpdateAccount;
 using AccountService.Shared.Domain;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AccountService.Features.Accounts;
@@ -16,6 +17,7 @@ namespace AccountService.Features.Accounts;
 /// Контроллер для управления банковскими счетами.
 /// </summary>
 [ApiController]
+[Authorize]
 [Produces("application/json")]
 [Route("api/[controller]")]
 public class AccountsController(IMediator mediator) : BaseApiController(mediator)

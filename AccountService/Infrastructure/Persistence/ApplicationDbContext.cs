@@ -23,6 +23,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             // 1. Hash-индекс по колонке ownerId
             entity.HasIndex(a => a.OwnerId).HasMethod("hash");
+            entity.Property<uint>("xmin")
+                // 2. Указываем, что в базе данных оно соответствует системному типу 'xid'.
+                .HasColumnType("xid")
+                // 3. Говорим EF, что значение этого поля генерируется базой данных при каждой вставке или обновлении.
+                //    EF не будет пытаться записать в него значение.
+                .ValueGeneratedOnAddOrUpdate()
+                // 4. Явно указываем, что это свойство является нашим токеном параллелизма.
+                .IsConcurrencyToken();
         });
 
         // Конфигурация для таблицы Transactions
@@ -33,7 +41,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
             // 3. GiST-индекс по колонке "date" для выборок по диапазону
             // Для создания двух индексов на одно поле, нужно дать им имена
-            entity.HasIndex(t => t.Timestamp, "IX_Transactions_Date_Default"); // Обычный B-Tree по умолчанию
+            //entity.HasIndex(t => t.Timestamp, "IX_Transactions_Date_Default"); // Обычный B-Tree по умолчанию
             entity.HasIndex(t => t.Timestamp, "IX_Transactions_Date_Gist")
                 .HasMethod("gist")
                 .HasDatabaseName("IX_Transactions_Date_Gist");

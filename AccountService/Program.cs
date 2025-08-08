@@ -105,7 +105,7 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
-
-app.MapControllers().RequireAuthorization(); // Сопоставляет запросы с методами контроллеров
+app.MapControllers();
+//app.MapControllers().RequireAuthorization(); // Сопоставляет запросы с методами контроллеров
 
 app.Run(); // Запускает приложение

@@ -1,11 +1,13 @@
 using AccountService.Features.Transfers.CreateTransfer;
 using AccountService.Shared.Domain;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AccountService.Features.Transfers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 [Produces("application/json")]
 public class TransfersController(IMediator mediator) : BaseApiController(mediator)

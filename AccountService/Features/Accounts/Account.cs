@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using AccountService.Features.Transactions;
 
 namespace AccountService.Features.Accounts;
@@ -7,6 +8,8 @@ public class Account
     public Guid Id { get; set; }
     public Guid OwnerId { get; set; }
     public AccountType AccountType { get; init; }
+    
+    [StringLength(3)]
     public required string Currency{get; init; }
     public decimal Balance{get;set;}
     public decimal? InterestRate { get; set; }
@@ -14,6 +17,7 @@ public class Account
     public DateTime? CloseDate {get;set;}
     
     // Последний день начисления процентов
+    // ReSharper disable once PropertyCanBeMadeInitOnly.Global  Resharper считает, что set не нужен, он необходим для EF core.
     public DateTime? LastInterestAccrualDate { get; set; } 
     
     /// <summary>

@@ -3,6 +3,7 @@ using AccountService.Features.Transactions.GetTransactionById;
 using AccountService.Features.Transactions.RegisterTransaction;
 using AccountService.Shared.Domain;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AccountService.Features.Transactions;
@@ -11,6 +12,7 @@ namespace AccountService.Features.Transactions;
 /// Управляет транзакциями и выписками по счетам.
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/accounts/{accountId:guid}/transactions")]
 [Produces("application/json")]
 public class TransactionsController(IMediator mediator) : BaseApiController(mediator) // Наследуемся от BaseApiController

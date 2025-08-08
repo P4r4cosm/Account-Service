@@ -19,6 +19,14 @@ public abstract class BaseApiController(IMediator mediator) : ControllerBase
             Ok(result)
             : HandleFailure(result);
     }
+    protected IActionResult HandleResult<T>(MbResult<T> result)
+    {
+        // Если результат успешен, возвращаем сам объект (payload).
+        // Статус 200 OK уже неявно говорит об успехе.
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : HandleFailure(result);
+    }
 
     protected IActionResult HandleCreationResult<T>(MbResult<T> result, string actionName, object routeValues)
     {
@@ -35,7 +43,6 @@ public abstract class BaseApiController(IMediator mediator) : ControllerBase
         // Проверяем, что ошибка действительно есть
         if (result.IsSuccess || result.Error is null)
         {
-            // Этого не должно происходить, но лучше подстраховаться.
             return StatusCode(StatusCodes.Status500InternalServerError,
                 MbResult.Failure(MbError.Custom("Error.Handling", "Произошла ошибка при обработке другой ошибки.")));
         }
