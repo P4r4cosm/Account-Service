@@ -13,6 +13,9 @@ public class Account
     public DateTime OpenedDate {get;set;}
     public DateTime? CloseDate {get;set;}
     
+    // Последний день начисления процентов
+    public DateTime? LastInterestAccrualDate { get; set; } 
+    
     /// <summary>
     /// Коллекция всех транзакций, проведённых по этому счёту.
     /// </summary>

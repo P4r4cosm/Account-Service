@@ -80,6 +80,9 @@ builder.Services.AddSwaggerGetWithAuth(builder.Configuration);
 // 2. Построение приложения
 var app = builder.Build();
 
+// Применяем миграции
+await app.MigrateDatabaseAsync<ApplicationDbContext>();
+
 // 3. Конфигурация конвейера обработки HTTP-запросов (Middleware)
 
 // Включаем CORS — обязательно ДО других middleware, обрабатывающих запросы

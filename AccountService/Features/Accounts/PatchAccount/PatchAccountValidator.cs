@@ -16,7 +16,6 @@ public class PatchAccountCommandValidator : AbstractValidator<PatchAccountComman
             RuleFor(cmd => cmd.OwnerId)
                 .NotEmpty().WithMessage("ID владельца не может быть пустым.");
         });
-
         // Проверяем InterestRate, только если он не null
         When(cmd => cmd.InterestRate.HasValue, () =>
         {

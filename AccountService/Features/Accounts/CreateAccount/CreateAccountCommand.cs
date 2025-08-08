@@ -21,7 +21,7 @@ public class CreateAccountCommand :  IRequest<MbResult<AccountDto>>
     /// <summary>
     /// Тип создаваемого счёта. Допустимые значения: Checking, Deposit, Credit.
     /// </summary>
-    /// <example>Checking</example>
+    /// <example>Deposit</example>
     [Required]
     public required string AccountType { get; set; }
 
@@ -34,7 +34,7 @@ public class CreateAccountCommand :  IRequest<MbResult<AccountDto>>
 
     /// <summary>
     /// Процентная ставка по счёту. Обязательно для вкладов (Deposit) и кредитов (Credit).
-    /// Может быть null для текущих счетов (Checking).
+    /// Должна быть null для текущих счетов (Checking).
     /// </summary>
     /// <example>5.5</example>
     public decimal? InterestRate { get; set; }
