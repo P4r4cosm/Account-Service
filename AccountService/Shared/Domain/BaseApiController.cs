@@ -68,7 +68,6 @@ public abstract class BaseApiController(IMediator mediator) : ControllerBase
             // Если код ошибки указывает на конфликт (например, попытка создать дубликат)
             var code when code.EndsWith(".Conflict", StringComparison.OrdinalIgnoreCase)
                 => Conflict(result), // Conflict() возвращает 409
-
             // Все остальные ошибки считаем внутренней ошибкой сервера
             _ => StatusCode(StatusCodes.Status500InternalServerError, result)
         };

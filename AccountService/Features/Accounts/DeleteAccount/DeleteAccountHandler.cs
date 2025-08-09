@@ -40,7 +40,7 @@ public class DeleteAccountHandler(IAccountRepository accountRepository, IUnitOfW
             
             // Возвращаем клиенту общую ошибку, которая превратится в 500 Internal Server Error
             return MbResult.Failure(
-                MbError.Custom("Database.Error", "Произошла ошибка при сохранении изменений в базу данных."));
+                MbError.Custom("Database.DbError", "Произошла ошибка при сохранении изменений в базу данных."));
         }
         
         // 4. Если всё прошло успешно

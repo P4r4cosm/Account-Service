@@ -12,7 +12,7 @@ public class RegisterTransactionValidator : AbstractValidator<RegisterTransactio
 {
     private const int MinTransactionAmount = 0;
 
-    private const int MaxDescriptionLength = 200;
+    private const int MaxDescriptionLength = 1000;
 
     public RegisterTransactionValidator()
     {

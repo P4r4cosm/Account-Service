@@ -56,13 +56,13 @@ public class CreateAccountHandler(
                 } postgresEx) // 23505 - unique_violation
             {
                 logger.LogWarning(postgresEx, "Попытка создать счет с дублирующимся ключом.");
-                return MbResult<AccountDto>.Failure(MbError.Custom("Account.Duplicate",
+                return MbResult<AccountDto>.Failure(MbError.Custom("Account.Conflict",
                     "Счет с такими параметрами уже существует."));
             }
 
             logger.LogError(ex, "Ошибка базы данных при создании счета.");
             // Возвращаем общую ошибку, которая превратится в HTTP 500
-            return MbResult<AccountDto>.Failure(MbError.Custom("Database.Error",
+            return MbResult<AccountDto>.Failure(MbError.Custom("Database.DbError",
                 "Произошла ошибка при сохранении данных в базу."));
         }
     }

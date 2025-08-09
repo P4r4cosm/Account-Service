@@ -9,103 +9,118 @@ using AccountService.Shared.Extensions;
 using AccountService.Shared.Filters;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace AccountService;
 
-// 1. Конфигурация сервисов (Dependency Injection)
-
-// Добавляем контроллеры и настраиваем глобальные фильтры и JSON
-builder.Services.AddControllers(options => { options.Filters.Add<ApiExceptionFilter>(); })
-    .AddJsonOptions(options =>
-    {
-        // Сериализация enum в строку
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
-
-// Регистрируем сервисы-заглушки
-builder.Services.AddSingleton<IClientVerificationService, StubClientVerificationService>();
-builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
-
-
-// Postgres
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// Repository
-builder.Services.AddScoped<IAccountRepository, PostgresAccountRepository>();
-builder.Services.AddScoped<ITransactionRepository, PostgresTransactionRepository>();
-
-// IUnitOfWork
-builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
-
-
-
-
-// === Добавляем CORS: Разрешаем все origins, методы и заголовки ===
-builder.Services.AddCors(options =>
+public class Program
 {
-    options.AddPolicy("AllowAll", policy =>
+    private static async Task Main(string[] args)
     {
-        policy
-            .AllowAnyOrigin() // Разрешить запросы с любого домена
-            .AllowAnyMethod() // Разрешить все HTTP-методы (GET, POST, PUT, DELETE и т.д.)
-            .AllowAnyHeader(); // Разрешить все заголовки
-    });
-});
+        var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddAuthorization();
-builder.Services.AddAuthenticationBearer(builder.Configuration);
+        ConfigureServices(builder);
 
-// Устанавливаем глобальное правило: для каждого свойства (RuleFor)
-// прекращать валидацию после первой же неудавшейся проверки.
-ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
+        var app = builder.Build();
 
-// Регистрируем FluentValidation и все валидаторы из сборки
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+        await ConfigureMiddlewareAsync(app);
 
-// Регистрируем AutoMapper и все профили из сборки
-builder.Services.AddAutoMapper(_ => { }, typeof(Program));
+        await app.RunAsync();
+    }
 
-// Регистрируем Mediatr все его компоненты из сборки
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
-
-// Использовать для любого IPipelineBehavior<TRequest, TResponse> ValidationBehavior
-builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-
-// Настраиваем Swagger (Swashbuckle)
-builder.Services.AddEndpointsApiExplorer(); // Необходимо для Swagger
-builder.Services.AddSwaggerGetWithAuth(builder.Configuration);
-
-// 2. Построение приложения
-var app = builder.Build();
-
-// Применяем миграции
-await app.MigrateDatabaseAsync<ApplicationDbContext>();
-
-// 3. Конфигурация конвейера обработки HTTP-запросов (Middleware)
-
-// Включаем CORS — обязательно ДО других middleware, обрабатывающих запросы
-app.UseCors("AllowAll");
-
-// Включаем Swagger только в режиме разработки для безопасности
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-
-    app.UseSwaggerUI(options =>
+    private static void ConfigureServices(WebApplicationBuilder builder)
     {
-        // Чтобы Swagger UI открывался по корневому URL (http://localhost:xxxx/)
-        options.RoutePrefix = "swagger";
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Account Service API V1");
-        options.OAuthClientId(builder.Configuration["Swagger:ClientId"]);
-    });
+        // Controllers + JSON
+        builder.Services.AddControllers(options => { options.Filters.Add<ApiExceptionFilter>(); })
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
+
+        // Stub services
+        builder.Services.AddSingleton<IClientVerificationService, StubClientVerificationService>();
+        builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
+
+        // PostgreSQL
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+        // Repository + UnitOfWork
+        builder.Services.AddScoped<IAccountRepository, PostgresAccountRepository>();
+        builder.Services.AddScoped<ITransactionRepository, PostgresTransactionRepository>();
+        builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+
+        // CORS
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll", policy => { policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); });
+        });
+
+        // Auth & Authorization
+        if (builder.Environment.IsEnvironment("Testing"))
+        {
+            // Для среды "Testing" мы заменяем стандартную политику авторизации
+            // на политику, которая разрешает все запросы.
+            builder.Services.AddAuthorizationBuilder()
+                // Для среды "Testing" мы заменяем стандартную политику авторизации
+                // на политику, которая разрешает все запросы.
+                    .SetDefaultPolicy(new AuthorizationPolicyBuilder()
+                    .RequireAssertion(_ => true) // Всегда разрешать
+                    .Build());
+        }
+        else
+        {
+            // Для всех остальных сред (Development, Production) настраиваем
+            // стандартную JWT Bearer аутентификацию и авторизацию.
+            builder.Services.AddAuthenticationBearer(builder.Configuration);
+            builder.Services.AddAuthorization();
+        }
+
+        // FluentValidation
+        ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
+        builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+        // AutoMapper
+        builder.Services.AddAutoMapper(_ => { }, typeof(Program));
+
+        // Mediatr
+        builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+        builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        // Swagger
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGetWithAuth(builder.Configuration);
+    }
+
+
+    private static async Task ConfigureMiddlewareAsync(WebApplication app)
+    {
+        // DB migrations
+        await app.MigrateDatabaseAsync<ApplicationDbContext>();
+
+        // CORS
+        app.UseCors("AllowAll");
+
+        // Swagger in dev
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseSwagger();
+            app.UseSwaggerUI(options =>
+            {
+                options.RoutePrefix = "swagger";
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Account Service API V1");
+                options.OAuthClientId(app.Configuration["Swagger:ClientId"]);
+            });
+        }
+
+        // Auth - Теперь эти вызовы безопасны для всех сред.
+        // Условная логика больше не нужна.
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        // Controllers
+        app.MapControllers();
+        // app.MapControllers().RequireAuthorization(); 
+    }
 }
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-//app.MapControllers().RequireAuthorization(); // Сопоставляет запросы с методами контроллеров
-
-app.Run(); // Запускает приложение

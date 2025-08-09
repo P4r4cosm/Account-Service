@@ -48,9 +48,9 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
         dbContext.Accounts.Update(account);
         return Task.CompletedTask;
     }
-    
-    
-     public async Task<PagedResult<Account>> GetPagedAccountsAsync(
+
+
+    public async Task<PagedResult<Account>> GetPagedAccountsAsync(
         GetAccountsQuery filters, 
         CancellationToken cancellationToken)
     {
@@ -90,6 +90,7 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
         
         if (filters.OpeningDateFrom.HasValue)
         {
+            filters.OpeningDateFrom = DateTime.SpecifyKind((DateTime)filters.OpeningDateFrom, DateTimeKind.Utc);
             query = query.Where(a => a.OpenedDate >= filters.OpeningDateFrom.Value);
         }
         
@@ -97,6 +98,7 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
         {
             // Добавляем один день и ищем "меньше", чтобы включить весь день до 23:59:59
             var dateTo = filters.OpeningDateTo.Value.Date.AddDays(1);
+            dateTo=DateTime.SpecifyKind(dateTo, DateTimeKind.Utc);
             query = query.Where(a => a.OpenedDate < dateTo);
         }
 

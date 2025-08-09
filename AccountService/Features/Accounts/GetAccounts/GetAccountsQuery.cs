@@ -8,7 +8,8 @@ namespace AccountService.Features.Accounts.GetAccounts;
 /// Запрос на получение списка счетов с расширенными параметрами фильтрации.
 /// </summary>
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
-[SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
+[SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global")]
+[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class GetAccountsQuery : IRequest<MbResult<PagedResult<AccountDto>>>
 {
     /// <summary>

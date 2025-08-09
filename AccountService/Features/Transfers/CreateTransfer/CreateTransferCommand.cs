@@ -9,7 +9,8 @@ namespace AccountService.Features.Transfers.CreateTransfer;
 /// Команда для выполнения перевода средств между двумя банковскими счетами.
 /// </summary>
 
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class CreateTransferCommand : IRequest<MbResult>
 {
     /// <summary>

@@ -17,7 +17,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresExtension("btree_gist");
         base.OnModelCreating(modelBuilder);
+        
         // Конфигурация для таблицы Accounts
         modelBuilder.Entity<Account>(entity =>
         {

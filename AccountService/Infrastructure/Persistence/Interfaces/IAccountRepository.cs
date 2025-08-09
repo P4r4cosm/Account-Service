@@ -23,4 +23,5 @@ public interface IAccountRepository
         CancellationToken cancellationToken);
 
     Task UpdateAsync(Account account, CancellationToken cancellationToken);
+    
 }

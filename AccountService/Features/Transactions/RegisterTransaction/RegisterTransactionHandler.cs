@@ -27,7 +27,7 @@ public class RegisterTransactionHandler(
                     $"Счёт {request.AccountId} не найден."));
 
             if (account.CloseDate.HasValue)
-                return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Closed",
+                return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Validation",
                     "Операции по закрытому счёту невозможны."));
 
             // Создаем новую сущность транзакции
@@ -39,7 +39,7 @@ public class RegisterTransactionHandler(
 
             // Обновляем баланс и проверяем на достаточность средств
             if (newTransaction.Type == TransactionType.Debit && account.Balance < request.Amount)
-                return MbResult<TransactionDto>.Failure(MbError.Custom("Transaction.InsufficientFunds",
+                return MbResult<TransactionDto>.Failure(MbError.Custom("Transaction.Validation",
                     "Недостаточно средств на счёте для списания."));
 
             account.Balance += newTransaction.Type == TransactionType.Credit ? request.Amount : -request.Amount;
@@ -68,7 +68,7 @@ public class RegisterTransactionHandler(
             await unitOfWork.RollbackTransactionAsync(cancellationToken); // Откатываем явную транзакцию
             logger.LogError(ex, "Ошибка базы данных при регистрации транзакции для счёта {AccountId}",
                 request.AccountId);
-            return MbResult<TransactionDto>.Failure(MbError.Custom("Database.Error",
+            return MbResult<TransactionDto>.Failure(MbError.Custom("Database.DbError",
                 "Произошла ошибка при сохранении данных."));
         }
     }

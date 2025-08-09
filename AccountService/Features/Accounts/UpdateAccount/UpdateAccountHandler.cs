@@ -58,7 +58,7 @@ public class UpdateAccountHandler(
         catch (DbUpdateException ex)
         {
             logger.LogError(ex, "Ошибка базы данных при обновлении счёта {AccountId}", request.AccountId);
-            return MbResult.Failure(MbError.Custom("Database.Error", "Произошла ошибка при сохранении изменений в базу данных."));
+            return MbResult.Failure(MbError.Custom("Database.DbError", "Произошла ошибка при сохранении изменений в базу данных."));
         }
         return MbResult.Success();
     }

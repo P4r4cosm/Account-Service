@@ -4,6 +4,7 @@ using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace AccountService.Features.Transfers.CreateTransfer;
 
@@ -135,10 +136,31 @@ public class CreateTransferHandler(
         }
         catch (Exception ex)
         {
+            if (IsSerializationFailure(ex))
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                logger.LogWarning(ex, "Конфликт сериализации при переводе со счёта {FromAccountId} на {ToAccountId}", 
+                    request.FromAccountId, request.ToAccountId);
+                return MbResult.Failure(MbError.Custom(
+                    "Transfer.Conflict", 
+                    "Данные одного из счетов были изменены параллельно. Повторите операцию."));
+            }
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(ex, "Ошибка при выполнении перевода со счёта {FromAccountId} на {ToAccountId}", 
                 request.FromAccountId, request.ToAccountId);
-            return MbResult.Failure(MbError.Custom("Transfer.Error", "Произошла системная ошибка при выполнении перевода."));
+            return MbResult.Failure(MbError.Custom("Transfer.Error", ex.Message));
         }
+    }
+    private static bool IsSerializationFailure(Exception? ex)
+    {
+        while (ex != null)
+        {
+            if (ex is NpgsqlException { SqlState: "40001" })
+            {
+                return true;
+            }
+            ex = ex.InnerException;
+        }
+        return false;
     }
 }

@@ -10,7 +10,8 @@ namespace AccountService.Features.Accounts.UpdateAccount;
 /// Команда для полного обновления данных банковского счёта.
 /// </summary>
 
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class UpdateAccountCommand : IRequest<MbResult>
 {
 
