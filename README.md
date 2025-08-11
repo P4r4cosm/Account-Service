@@ -69,7 +69,7 @@
     ```bash
     git clone https://github.com/P4r4cosm/Account-Service.git
     cd Account-Service
-    git checkout feature/assignment-2-auth-and-docker  
+    git checkout feature/account-service-postgres-migration-and-tests 
     ```
 2.  **Запустите контейнеры:**
     ```bash
@@ -100,7 +100,7 @@
     ```bash
     git clone https://github.com/P4r4cosm/Account-Service.git
     cd Account-Service
-    git checkout feature/assignment-2-auth-and-docker  
+     git checkout feature/account-service-postgres-migration-and-tests  
     ```
 
 2.  **Откройте решение в Visual Studio 2022:**
