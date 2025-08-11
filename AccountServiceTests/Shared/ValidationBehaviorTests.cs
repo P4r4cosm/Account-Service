@@ -21,7 +21,7 @@ public abstract class InvalidResultType(bool isSuccess, MbError? error) : MbResu
 }
 
 // Запрос для теста с некорректным типом результата
-public record TestRequestWithInvalidResult() : IRequest<InvalidResultType>;
+public record TestRequestWithInvalidResult : IRequest<InvalidResultType>;
 
 // Валидатор для TestRequest
 public class TestRequestValidator : AbstractValidator<TestRequest>
