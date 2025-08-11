@@ -134,7 +134,8 @@
 *   **Запуск всех тестов:**
     ```bash
     dotnet test AccountService.sln
-    ```*   **Интеграционные тесты** (`ParallelTransferTests`) используют **Testcontainers-DotNet** для поднятия временного контейнера PostgreSQL, что гарантирует тестирование на чистой и реальной базе данных при каждом запуске.
+    ```
+*   **Интеграционные тесты** (`ParallelTransferTests`) используют **Testcontainers-DotNet** для поднятия временного контейнера PostgreSQL, что гарантирует тестирование на чистой и реальной базе данных при каждом запуске.
 * Для получения отчёта по покрытию кода тестами необходимо находиться в главной директории проекта и выполнить следующие команды:
 ```bash
 dotnet test AccountService.sln --collect:"XPlat Code Coverage" --results-directory ./coverage/
