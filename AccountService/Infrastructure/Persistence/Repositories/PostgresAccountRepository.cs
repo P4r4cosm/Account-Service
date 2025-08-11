@@ -57,10 +57,21 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
             cancellationToken);
     }
 
-    public async Task<List<Guid>> GetAccountIdsForAccrueInterestAsync(CancellationToken cancellationToken)
+    public async Task<int> GetAccountCountForAccrueInterestAsync(CancellationToken cancellationToken)
     {
         return await dbContext.Accounts
             .Where(a => a.AccountType == AccountType.Deposit && a.CloseDate == null && a.Balance > 0)
+            .CountAsync(cancellationToken);
+    }
+
+    // Заменяем старый метод GetAccountIdsForAccrueInterestAsync на этот
+    public async Task<IEnumerable<Guid>> GetPagedAccountIdsForAccrueInterestAsync(int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        return await dbContext.Accounts
+            .Where(a => a.AccountType == AccountType.Deposit && a.CloseDate == null && a.Balance > 0)
+            .OrderBy(a => a.Id) // OrderBy обязателен для стабильной пагинации!
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .Select(a => a.Id)
             .ToListAsync(cancellationToken);
     }

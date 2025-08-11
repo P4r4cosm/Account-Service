@@ -12,49 +12,37 @@ public class InterestAccrualService(
     : IInterestAccrualService
 {
 
-    public async Task AccrueInterestForAllDepositsAsync(IJobCancellationToken cancellationToken)
+
+    // Переименовываем и изменяем сигнатуру старого метода
+    public async Task AccrueInterestForBatchAsync(int pageNumber, int pageSize, IJobCancellationToken cancellationToken)
     {
         var token = cancellationToken.ShutdownToken;
-        logger.LogInformation("Запуск ежедневного начисления процентов по вкладам.");
-
-        // Начинаем одну большую транзакцию для всех операций
-        await unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable, token);
+        logger.LogInformation("Начало обработки батча #{PageNumber}.", pageNumber);
         
+        await unitOfWork.BeginTransactionAsync(IsolationLevel.RepeatableRead, token);
         try
         {
-            // Получаем все ID счетов, которым нужно начислить проценты
-            var accountsIds = await accountRepository.GetAccountIdsForAccrueInterestAsync(token);
-            logger.LogInformation("Найдено {Count} счетов для начисления процентов.", accountsIds.Count);
-
-            // Проверяем, не была ли запрошена отмена, ПЕРЕД началом цикла
-            token.ThrowIfCancellationRequested();
-
+            var accountIds = (List<Guid>)await accountRepository.GetPagedAccountIdsForAccrueInterestAsync(pageNumber, pageSize, token) ;
             
-            foreach (var id in accountsIds)
+            foreach (var id in accountIds)
             {
-                
                 token.ThrowIfCancellationRequested();
-
-                logger.LogDebug("Начисление процентов для счета {AccountId}", id);
-                
                 await accountRepository.AccrueInterest(id, token);
             }
 
-            // Если весь цикл прошел успешно, коммитим транзакцию
             await unitOfWork.CommitTransactionAsync(token);
-
-            logger.LogInformation("Завершено ежедневное начисление процентов. Обработано {Count} счетов.", accountsIds.Count());
+            logger.LogInformation("Батч #{PageNumber} успешно обработан. Счетов: {Count}", pageNumber, accountIds.Count);
         }
         catch (OperationCanceledException)
         {
-            logger.LogWarning("Задача начисления процентов была отменена. Откатываем транзакцию.");
-            await unitOfWork.RollbackTransactionAsync(CancellationToken.None); 
+            logger.LogWarning("Обработка батча #{PageNumber} была отменена. Откат транзакции.", pageNumber);
+            await unitOfWork.RollbackTransactionAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Произошла критическая ошибка при начислении процентов. Откатываем транзакцию.");
-            await unitOfWork.RollbackTransactionAsync(CancellationToken.None); 
-            throw; // Пробрасываем, чтобы Hangfire пометил задачу как Failed
+            logger.LogError(ex, "Критическая ошибка при обработке батча #{PageNumber}. Откат транзакции.", pageNumber);
+            await unitOfWork.RollbackTransactionAsync(CancellationToken.None);
+            throw; // Важно пробросить, чтобы Hangfire пометил этот батч как Failed
         }
     }
     

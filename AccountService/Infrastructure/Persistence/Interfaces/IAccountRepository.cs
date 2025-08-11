@@ -26,7 +26,9 @@ public interface IAccountRepository
     
     Task AccrueInterest(Guid accountId, CancellationToken cancellationToken);
     
-    Task<List<Guid>> GetAccountIdsForAccrueInterestAsync(CancellationToken cancellationToken); 
+    Task<int> GetAccountCountForAccrueInterestAsync(CancellationToken cancellationToken);
+    
+    Task<IEnumerable<Guid>> GetPagedAccountIdsForAccrueInterestAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
     
 
 }

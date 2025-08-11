@@ -44,7 +44,12 @@ public class Program
         // Stub services
         builder.Services.AddSingleton<IClientVerificationService, StubClientVerificationService>();
         builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
+        
+        
+        // Hangfire services
         builder.Services.AddScoped<IInterestAccrualService, InterestAccrualService>();
+        builder.Services.AddScoped<IInterestAccrualOrchestrator, InterestAccrualOrchestrator>();
+        
         // PostgreSQL
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -117,12 +122,11 @@ public class Program
 
 
         app.UseHangfireDashboard(); // Панель будет доступна по адресу /hangfire
-        RecurringJob.AddOrUpdate<IInterestAccrualService>(
+        RecurringJob.AddOrUpdate<IInterestAccrualOrchestrator>(
             "daily-interest-accrual",
-            service =>
-                service.AccrueInterestForAllDepositsAsync(JobCancellationToken.Null), // Вызываем async-метод напрямую
+            orchestrator => orchestrator.StartAccrualProcess(), // Вызываем async-метод напрямую
             Cron.Daily,
-            new RecurringJobOptions{ TimeZone = TimeZoneInfo.Utc });
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
         // CORS
         app.UseCors("AllowAll");
