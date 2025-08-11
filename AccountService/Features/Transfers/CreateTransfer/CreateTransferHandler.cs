@@ -31,7 +31,7 @@ public class CreateTransferHandler(
         {
             var fromAccount = await accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
             var toAccount = await accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
-            var validationResult = await ValidateTransferAsync(request, fromAccount, toAccount, cancellationToken);
+            var validationResult = await ValidateTransferAsync(request, fromAccount, toAccount);
             if (validationResult.IsFailure)
             {
                 await unitOfWork.RollbackTransactionAsync(cancellationToken);
@@ -120,17 +120,16 @@ public class CreateTransferHandler(
         return (debitTransaction, creditTransaction);
     }
 
-    private void UpdateAccountBalances(Account fromAccount, Account toAccount, decimal amount)
+    private static void UpdateAccountBalances(Account fromAccount, Account toAccount, decimal amount)
     {
         fromAccount.Balance -= amount;
         toAccount.Balance += amount;
     }
 
-    private Task<MbResult> ValidateTransferAsync(
+    private static Task<MbResult> ValidateTransferAsync(
         CreateTransferCommand request,
         Account? fromAccount,
-        Account? toAccount,
-        CancellationToken cancellationToken)
+        Account? toAccount)
     {
         if (fromAccount is null)
         {

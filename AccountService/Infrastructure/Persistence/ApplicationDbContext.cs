@@ -39,7 +39,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<Transaction>(entity =>
         {
             // 2. Составной индекс (accountId, "date")
-            entity.HasIndex(t => new { t.AccountId, t.Timestamp });
+            entity.HasIndex(t => new { t.AccountId, t.Timestamp })
+                .HasDatabaseName("IX_Transactions_AccountId_Timestamp")
+                .IsDescending(false, true); // AccountId ASC, Timestamp DESC
 
             // 3. GiST-индекс по колонке "date" для выборок по диапазону
             // Для создания двух индексов на одно поле, нужно дать им имена

@@ -2,15 +2,21 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using AccountService.Shared.Domain;
 using MediatR;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace AccountService.Features.Transactions.GetAccountStatement;
 
 
+/// <summary>
+/// Команда для получения выписки по счёту.
+/// </summary>
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class GetAccountStatementQuery : IRequest<MbResult<AccountStatementDto>>
 {
-    [JsonIgnore] // Из URL
+
+    [JsonIgnore]
+    [SwaggerSchema(ReadOnly = true)]
     public Guid AccountId { get; set; }
 
     /// <summary>

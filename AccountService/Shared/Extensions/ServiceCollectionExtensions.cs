@@ -18,7 +18,7 @@ public static class ServiceCollectionExtensions
                 Description =
                     "Микросервис для управления банковскими счетами и транзакциями в соответствии с заданием Модуль Банка."
             });
-
+            options.EnableAnnotations();
             // Включаем отображение комментариев в интерфейсе Swagger
             var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);

@@ -170,7 +170,10 @@ public  class PostgresAccountRepositoryTests
         var account = await _dbContext.Accounts.FindAsync(accountId);
         
         // Отсоединяем объект, чтобы имитировать сценарий обновления в реальном приложении
-        _dbContext.Entry(account).State = EntityState.Detached;
+        if (account != null)
+        {
+            _dbContext.Entry(account).State = EntityState.Detached;
+        }
 
         if (account != null)
         {

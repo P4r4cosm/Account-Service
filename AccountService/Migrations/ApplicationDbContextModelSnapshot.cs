@@ -103,7 +103,9 @@ namespace AccountService.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountId", "Timestamp");
+                    b.HasIndex("AccountId", "Timestamp")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("IX_Transactions_AccountId_Timestamp");
 
                     b.HasIndex(new[] { "Timestamp" }, "IX_Transactions_Date_Gist")
                         .HasDatabaseName("IX_Transactions_Date_Gist");

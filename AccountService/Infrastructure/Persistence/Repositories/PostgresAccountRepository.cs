@@ -3,7 +3,6 @@ using AccountService.Features.Accounts.GetAccounts;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace AccountService.Infrastructure.Persistence.Repositories;
 

@@ -17,10 +17,16 @@ public class PostgresTransactionRepository(ApplicationDbContext dbContext): ITra
 
         // 2. Добавляем фильтры. Они будут транслированы в SQL WHERE
         if (startDate.HasValue)
+        {
+            startDate=DateTime.SpecifyKind((DateTime)startDate, DateTimeKind.Utc);
             query = query.Where(t => t.Timestamp >= startDate.Value);
+        }
         
         if (endDate.HasValue)
+        {
+            endDate=DateTime.SpecifyKind((DateTime)endDate, DateTimeKind.Utc);
             query = query.Where(t => t.Timestamp <= endDate.Value);
+        }
 
         // 3. Считаем общее количество записей В БАЗЕ ДАННЫХ
         var totalCount = await query.CountAsync(cancellationToken);
