@@ -15,8 +15,7 @@ public class ParallelTransferTests(CustomWebApplicationFactory factory) : IClass
     [Fact]
     public async Task Transfers_ShouldMaintainTotalBalance_WhenRunInParallel()
     {
-        // --- ARRANGE ---
-        
+       
         // Создаем 2 счета
         var fromAccountId = Guid.NewGuid();
         var toAccountId = Guid.NewGuid();
@@ -76,8 +75,7 @@ public class ParallelTransferTests(CustomWebApplicationFactory factory) : IClass
         var conflictTransfers = responses.Count(r => r.StatusCode == HttpStatusCode.Conflict);
         var otherErrors = responses.Length - successfulTransfers - conflictTransfers;
         
-        // Проверяем, что только одна транзакция завершилась успешно
-        // Это критически важно для теста параллельных операций с оптимистичной блокировкой
+        
         successfulTransfers.Should().BeGreaterThanOrEqualTo(1, "только одна транзакция должна завершиться успешно из-за оптимистичной блокировки");
         
         // Проверяем, что остальные запросы вернули 409 Conflict

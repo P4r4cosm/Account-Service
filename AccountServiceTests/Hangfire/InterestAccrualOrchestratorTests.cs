@@ -30,7 +30,7 @@ public class InterestAccrualOrchestratorTests
         // Act
         await orchestrator.StartAccrualProcess();
 
-        // Assert — проверяем Create, а не Enqueue
+        // Assert 
         backgroundJobClient.Verify(
             c => c.Create(It.IsAny<Job>(), It.IsAny<IState>()),
             Times.Never);

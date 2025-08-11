@@ -25,12 +25,10 @@ public class GetAccountsHandlerTests
     [Fact]
     public async Task Handle_Should_CallRepository_And_MapResults_To_Return_PagedDto()
     {
-        // Arrange (Настройка)
+        // Arrange
 
-        // 1. Входящий запрос
         var query = new GetAccountsQuery { PageNumber = 1, PageSize = 10 };
 
-        // 2. Данные, которые "вернет" репозиторий (сущности Account)
         var accountsFromRepo = new List<Account>
         {
             new() { Id = Guid.NewGuid(), OwnerId = Guid.NewGuid(), AccountType = AccountType.Checking, Currency = "RUB", Balance = 100 },
@@ -38,14 +36,14 @@ public class GetAccountsHandlerTests
         };
         var pagedAccountsFromRepo = new PagedResult<Account>(accountsFromRepo, 25, query.PageNumber, query.PageSize);
         
-        // 3. Данные, которые "вернет" маппер (DTO)
+    
         var mappedAccountDtos = new List<AccountDto>
         {
             new() { Id = accountsFromRepo[0].Id, AccountType = "Checking", Currency = "RUB" },
             new() { Id = accountsFromRepo[1].Id, AccountType = "Deposit", Currency = "USD" }
         };
         
-        // 4. Настройка моков
+      
         _accountRepositoryMock
             .Setup(r => r.GetPagedAccountsAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(pagedAccountsFromRepo);
@@ -54,24 +52,21 @@ public class GetAccountsHandlerTests
             .Setup(m => m.Map<IEnumerable<AccountDto>>(accountsFromRepo))
             .Returns(mappedAccountDtos);
 
-        // Act (Действие)
+        // Act
         var result = await _handler.Handle(query, CancellationToken.None);
 
-        // Assert (Проверка)
+        // Assert 
         
-        // Проверяем, что результат успешный
         result.IsSuccess.Should().BeTrue();
         result.Error.Should().BeNull();
         
-        // Проверяем сам PagedResult
         var pagedDto = result.Value;
         pagedDto.Should().NotBeNull();
-        pagedDto.Items.Should().BeEquivalentTo(mappedAccountDtos); // Содержимое страницы верное
-        pagedDto.TotalCount.Should().Be(25); // Общее количество верное
+        pagedDto.Items.Should().BeEquivalentTo(mappedAccountDtos); 
+        pagedDto.TotalCount.Should().Be(25); 
         pagedDto.PageNumber.Should().Be(query.PageNumber);
         pagedDto.PageSize.Should().Be(query.PageSize);
         
-        // Убедимся, что зависимости были вызваны
         _accountRepositoryMock.Verify(r => r.GetPagedAccountsAsync(query, It.IsAny<CancellationToken>()), Times.Once);
         _mapperMock.Verify(m => m.Map<IEnumerable<AccountDto>>(accountsFromRepo), Times.Once);
     }

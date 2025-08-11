@@ -15,6 +15,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace AccountService;
 
 public class Program
@@ -35,7 +36,7 @@ public class Program
     private static void ConfigureServices(WebApplicationBuilder builder)
     {
         // Controllers + JSON
-        builder.Services.AddControllers(options => { options.Filters.Add<ApiExceptionFilter>(); })
+        builder.Services.AddControllers()
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -119,7 +120,7 @@ public class Program
     {
         // DB migrations
         await app.MigrateDatabaseAsync<ApplicationDbContext>();
-        
+
         // CORS
         app.UseCors("AllowAll");
 
@@ -141,12 +142,12 @@ public class Program
         app.UseAuthorization();
         app.UseHangfireDashboard("/hangfire", new DashboardOptions
         {
-            Authorization = new[] { new HangfireAuthorizationFilter() }
+            Authorization = [new HangfireAuthorizationFilter()]
         });
         // Controllers
         app.MapControllers();
         // app.MapControllers().RequireAuthorization(); 
-        
+
         RecurringJob.AddOrUpdate<IInterestAccrualOrchestrator>(
             "daily-interest-accrual",
             orchestrator => orchestrator.StartAccrualProcess(),

@@ -21,6 +21,7 @@
     depends_on:
       - keycloak
       - postgres
+    restart: always
          
   keycloak:
     container_name: keycloak

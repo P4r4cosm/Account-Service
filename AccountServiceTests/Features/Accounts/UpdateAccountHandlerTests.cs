@@ -31,7 +31,6 @@ public class UpdateAccountHandlerTests
             _clientVerificationServiceMock.Object);
     }
     
-    // Вспомогательный метод для создания тестового счёта
     private static Account GetTestAccount(AccountType type = AccountType.Deposit) => new()
     {
         Currency = "RUB",
@@ -68,13 +67,10 @@ public class UpdateAccountHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-
-        // Проверяем, что все поля объекта 'account' были обновлены перед сохранением
         account.OwnerId.Should().Be(command.OwnerId);
         account.InterestRate.Should().Be(command.InterestRate);
         account.CloseDate.Should().Be(command.CloseDate);
-
-        // Проверяем, что были вызваны методы сохранения
+        
         _accountRepositoryMock.Verify(r => r.UpdateAsync(account, It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -146,7 +142,7 @@ public class UpdateAccountHandlerTests
     public async Task Handle_ShouldReturnValidationError_WhenCloseDateIsBeforeOpenedDate()
     {
         // Arrange
-        var account = GetTestAccount(); // OpenedDate = 2024-01-01
+        var account = GetTestAccount(); 
         var command = new UpdateAccountCommand { AccountId = account.Id, OwnerId = Guid.NewGuid(), CloseDate = new DateTime(2023, 12, 31) };
 
         _accountRepositoryMock

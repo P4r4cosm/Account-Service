@@ -65,7 +65,7 @@ public class PatchAccountHandlerTests
     {
         // Arrange
         var account = GetTestAccount();
-        var command = new PatchAccountCommand { AccountId = account.Id }; // Пустая команда
+        var command = new PatchAccountCommand { AccountId = account.Id };
         _accountRepositoryMock.Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                               .ReturnsAsync(account);
 
@@ -74,7 +74,7 @@ public class PatchAccountHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        // Самое главное: убедиться, что не было вызовов на сохранение
+       
         _accountRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Account>(), It.IsAny<CancellationToken>()), Times.Never);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }

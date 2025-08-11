@@ -11,9 +11,8 @@
         <PackageReference Include="coverlet.collector" Version="6.0.2"/>
         <PackageReference Include="FluentAssertions" Version="8.5.0" />
         <PackageReference Include="Hangfire.MemoryStorage" Version="1.8.1.2" />
-        <PackageReference Include="Hangfire.PostgreSql.NetCore" Version="1.4.3" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.8" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.8" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.4" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0"/>
         <PackageReference Include="Moq" Version="4.20.72" />
         <PackageReference Include="Testcontainers.PostgreSql" Version="4.6.0" />

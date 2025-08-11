@@ -12,18 +12,18 @@ public  class PostgresAccountRepositoryTests
     private readonly ApplicationDbContext _dbContext;
     private readonly PostgresAccountRepository _repository;
 
-    // Этот конструктор будет вызываться перед каждым тестом
+   
     public PostgresAccountRepositoryTests()
     {
-        // 1. Настройка DbContext для использования In-Memory базы данных
+       
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // Уникальное имя БД для каждого запуска теста
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) 
             .Options;
 
         _dbContext = new ApplicationDbContext(options);
         _repository = new PostgresAccountRepository(_dbContext);
 
-        // 2. Добавление тестовых данных
+        
         SeedData();
     }
 
@@ -40,7 +40,7 @@ public  class PostgresAccountRepositoryTests
         _dbContext.SaveChanges();
     }
 
-    // --- Тесты для GetByIdAsync ---
+    
 
     [Fact]
     public async Task GetByIdAsync_ShouldReturnAccount_WhenAccountExists()
@@ -83,7 +83,7 @@ public  class PostgresAccountRepositoryTests
         enumerable.Length.Should().Be(3);
     }
 
-    // --- Тесты для AddAsync ---
+  
 
     [Fact]
     public async Task AddAsync_ShouldAddAccountToDatabase()
@@ -101,7 +101,7 @@ public  class PostgresAccountRepositoryTests
 
         // Act
         await _repository.AddAsync(newAccount, CancellationToken.None);
-        await _dbContext.SaveChangesAsync(); // Важно сохранить изменения для проверки
+        await _dbContext.SaveChangesAsync();
 
         // Assert
         var addedAccount = await _dbContext.Accounts.FindAsync(newAccount.Id);
@@ -109,8 +109,6 @@ public  class PostgresAccountRepositoryTests
         addedAccount.Should().BeEquivalentTo(newAccount);
     }
     
-    // --- Тесты для DeleteAsync ---
-
     [Fact]
     public async Task DeleteAsync_ShouldSetCloseDate()
     {
@@ -160,7 +158,6 @@ public  class PostgresAccountRepositoryTests
         result.Should().BeFalse();
     }
     
-    // --- Тесты для UpdateAsync ---
 
     [Fact]
     public async Task UpdateAsync_ShouldUpdateAccountInDatabase()
@@ -191,7 +188,6 @@ public  class PostgresAccountRepositoryTests
         accountFromDb.Balance.Should().Be(9999);
     }
     
-    // --- Тесты для GetPagedAccountsAsync ---
     
     [Fact]
     public async Task GetPagedAccountsAsync_ShouldFilterByOwnerId()
@@ -243,8 +239,6 @@ public  class PostgresAccountRepositoryTests
             PageSize = 1
         };
         
-        // Act
-        // Сортируем по дате, чтобы гарантировать порядок для теста пагинации
         await _dbContext.Accounts.OrderBy(a => a.OpenedDate).ToListAsync();
 
         var result = await _repository.GetPagedAccountsAsync(filters, CancellationToken.None);
@@ -255,8 +249,7 @@ public  class PostgresAccountRepositoryTests
         result.PageNumber.Should().Be(2);
         result.PageSize.Should().Be(1);
         result.Items.Count().Should().Be(1);
-        // Примечание: порядок без явного OrderBy не гарантирован, этот тест может быть нестабилен.
-        // В реальном коде лучше добавить в GetPagedAccountsAsync сортировку по умолчанию.
+      
     }
     
      [Fact]
