@@ -19,53 +19,61 @@ DECLARE
     v_interest_amount DECIMAL;
     v_account_balance DECIMAL;
     v_interest_rate DECIMAL;
+    v_account_currency VARCHAR(3);
     v_opened_date TIMESTAMP WITH TIME ZONE;
     v_last_accrual_date TIMESTAMP WITH TIME ZONE;
     v_calculation_start_date TIMESTAMP WITH TIME ZONE;
     v_days_passed INT;
+    DEPOSIT_ACCOUNT_TYPE INT := 1; -- 1 = Deposit
+    CREDIT_TRANSACTION_TYPE INT := 0; --  0 = Credit
+
 BEGIN
-    -- 1. Получаем ВСЕ необходимые данные для расчета
+    -- 1. Получаем данные и НЕМЕДЛЕННО БЛОКИРУЕМ СТРОКУ
     SELECT
         ""Balance"",
         ""InterestRate"",
+        ""Currency"",
         ""OpenedDate"",
         ""LastInterestAccrualDate""
     INTO
         v_account_balance,
         v_interest_rate,
+        v_account_currency,
         v_opened_date,
         v_last_accrual_date
     FROM ""Accounts""
-    WHERE ""Id"" = p_account_id AND ""InterestRate"" IS NOT NULL AND ""InterestRate"" > 0;
+    WHERE ""Id"" = p_account_id
+      AND ""AccountType"" = DEPOSIT_ACCOUNT_TYPE
+      AND ""InterestRate"" IS NOT NULL AND ""InterestRate"" > 0
+    FOR UPDATE; -- Блокировка от гонки состояний
 
-    -- 2. Если это вклад, продолжаем
+    -- 2. Если счет найден и подходит, продолжаем
     IF FOUND THEN
-        -- Определяем, с какой даты начинать расчет.
-        -- Если проценты еще ни разу не начислялись, начинаем с даты открытия счета.
-        -- Иначе - с даты последнего начисления.
+        -- Используем NOW() AT TIME ZONE 'UTC' для независимости от часового пояса сервера
         v_calculation_start_date := COALESCE(v_last_accrual_date, v_opened_date);
+        v_days_passed := ( (NOW() AT TIME ZONE 'UTC')::date - v_calculation_start_date::date );
 
-        -- 3. Считаем, сколько ЦЕЛЫХ дней прошло с даты начала расчета до СЕГОДНЯ.
-        -- (CURRENT_DATE - '2025-08-05'::date) даст количество дней.
-        v_days_passed := (CURRENT_DATE - v_calculation_start_date::date);
-
-        -- 4. Если прошел хотя бы один день, начисляем проценты
-        IF v_days_passed > 0 THEN
-            -- ФОРМУЛА: (Ежедневный процент) * (Количество прошедших дней)
+        -- Начисляем проценты только если прошел хотя бы один полный день и баланс положительный
+        IF v_days_passed > 0 AND v_account_balance > 0 THEN
+            -- Округляем до 2 знаков после запятой
             v_interest_amount := ROUND((v_account_balance * v_interest_rate / 100 / 365) * v_days_passed, 2);
 
             IF v_interest_amount > 0 THEN
-                -- Обновляем баланс
+                -- Обновляем баланс и дату последнего начисления
                 UPDATE ""Accounts""
                 SET ""Balance"" = ""Balance"" + v_interest_amount,
-                    -- 5. КРИТИЧЕСКИ ВАЖНО: Обновляем дату последнего начисления на СЕГОДНЯ!
-                    ""LastInterestAccrualDate"" = NOW()
+                    ""LastInterestAccrualDate"" = NOW() AT TIME ZONE 'UTC'
                 WHERE ""Id"" = p_account_id;
 
-                -- Добавляем транзакцию
+                -- Добавляем запись о транзакции
                 INSERT INTO ""Transactions"" (""Id"", ""AccountId"", ""Amount"", ""Currency"", ""Type"", ""Description"", ""Timestamp"")
-                VALUES (gen_random_uuid(), p_account_id, v_interest_amount, 'RUB', 0,
-                        'Начисление процентов по вкладу за ' || v_days_passed || ' дн.', NOW());
+                VALUES (gen_random_uuid(),
+                        p_account_id,
+                        v_interest_amount,
+                        v_account_currency,
+                        CREDIT_TRANSACTION_TYPE,
+                        'Начисление процентов по вкладу (' || v_days_passed || ' дн.)',
+                        NOW() AT TIME ZONE 'UTC');
             END IF;
         END IF;
     END IF;

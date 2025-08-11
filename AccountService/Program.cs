@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using AccountService.Infrastructure.Persistence;
+using AccountService.Infrastructure.Persistence.HangfireServices;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Infrastructure.Persistence.Repositories;
 using AccountService.Infrastructure.Verification;
@@ -8,6 +9,8 @@ using AccountService.Shared.Domain;
 using AccountService.Shared.Extensions;
 using AccountService.Shared.Filters;
 using FluentValidation;
+using Hangfire;
+using Hangfire.PostgreSql;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +44,7 @@ public class Program
         // Stub services
         builder.Services.AddSingleton<IClientVerificationService, StubClientVerificationService>();
         builder.Services.AddSingleton<ICurrencyService, StubCurrencyService>();
-
+        builder.Services.AddScoped<IInterestAccrualService, InterestAccrualService>();
         // PostgreSQL
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -57,6 +60,19 @@ public class Program
             options.AddPolicy("AllowAll", policy => { policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); });
         });
 
+        // 1. Настройка HangFire
+        builder.Services.AddHangfire(configuration => configuration
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UsePostgreSqlStorage(options =>
+            {
+                options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
+            }));
+
+        // 2. Добавление фонового обработчика HangFire
+        builder.Services.AddHangfireServer();
+
         // Auth & Authorization
         if (builder.Environment.IsEnvironment("Testing"))
         {
@@ -65,7 +81,7 @@ public class Program
             builder.Services.AddAuthorizationBuilder()
                 // Для среды "Testing" мы заменяем стандартную политику авторизации
                 // на политику, которая разрешает все запросы.
-                    .SetDefaultPolicy(new AuthorizationPolicyBuilder()
+                .SetDefaultPolicy(new AuthorizationPolicyBuilder()
                     .RequireAssertion(_ => true) // Всегда разрешать
                     .Build());
         }
@@ -98,6 +114,15 @@ public class Program
     {
         // DB migrations
         await app.MigrateDatabaseAsync<ApplicationDbContext>();
+
+
+        app.UseHangfireDashboard(); // Панель будет доступна по адресу /hangfire
+        RecurringJob.AddOrUpdate<IInterestAccrualService>(
+            "daily-interest-accrual",
+            service =>
+                service.AccrueInterestForAllDepositsAsync(JobCancellationToken.Null), // Вызываем async-метод напрямую
+            Cron.Daily,
+            new RecurringJobOptions{ TimeZone = TimeZoneInfo.Utc });
 
         // CORS
         app.UseCors("AllowAll");

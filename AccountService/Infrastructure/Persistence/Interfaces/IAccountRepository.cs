@@ -24,4 +24,9 @@ public interface IAccountRepository
 
     Task UpdateAsync(Account account, CancellationToken cancellationToken);
     
+    Task AccrueInterest(Guid accountId, CancellationToken cancellationToken);
+    
+    Task<List<Guid>> GetAccountIdsForAccrueInterestAsync(CancellationToken cancellationToken); 
+    
+
 }

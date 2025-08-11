@@ -6,6 +6,9 @@ public class Transaction
 {
     public Guid Id { get; set; }
     public Guid AccountId { get; set; }
+    /// <summary>
+    /// ID счёта, на который будут зачислены средства.
+    /// </summary>
     public Guid? CounterpartyAccountId { get; init; }
     public decimal Amount { get; init; }
     [StringLength(3)]
