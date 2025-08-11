@@ -15,6 +15,7 @@
       - "Authentication__Audience=account"
       - "Authentication__ValidIssuer=http://localhost:8080/realms/account_service"
       - "Swagger__ClientId=public-client"
+      - "ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=account_db;Username=user;Password=password"
     networks:
       - app-network
     depends_on:
