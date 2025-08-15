@@ -1,8 +1,10 @@
+using AccountService.Shared.Options;
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
-namespace AccountService.Shared.MessageBroker;
+namespace AccountService.Infrastructure.Persistence.MessageBroker;
 
-public class RabbitMqInitializer(IConnection connection, ILogger<RabbitMqInitializer> logger)
+public class RabbitMqInitializer(IConnection connection, IOptions<RabbitMqOptions> options,ILogger<RabbitMqInitializer> logger)
     : IHostedService
 {
     
@@ -12,13 +14,14 @@ public class RabbitMqInitializer(IConnection connection, ILogger<RabbitMqInitial
 
         // Создаем временный асинхронный канал для операций
         await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
-
-        // Объявляем Exchange 'account.events' типа 'topic'
+        
+        var exchangeName = options.Value.ExchangeName;
+        // Объявляем Exchange типа 'topic'
         await channel.ExchangeDeclareAsync(
-            exchange: "account.events",
+            exchange: exchangeName,
             type: ExchangeType.Topic,
             durable: true, cancellationToken: cancellationToken);
-        logger.LogInformation("Exchange 'account.events' успешно объявлен.");
+        logger.LogInformation("Exchange {exchangeName} успешно объявлен.", exchangeName);
 
         // Объявляем очереди
         await channel.QueueDeclareAsync("account.crm", durable: true, exclusive: false, autoDelete: false, cancellationToken: cancellationToken);
@@ -28,11 +31,11 @@ public class RabbitMqInitializer(IConnection connection, ILogger<RabbitMqInitial
         logger.LogInformation("Очереди успешно объявлены.");
 
         // Привязываем очереди к Exchange
-        await channel.QueueBindAsync("account.crm", "account.events", "account.*", cancellationToken: cancellationToken);
-        await channel.QueueBindAsync("account.notifications", "account.events", "money.*", cancellationToken: cancellationToken);
-        await channel.QueueBindAsync("account.antifraud", "account.events", "client.*", cancellationToken: cancellationToken);
-        await channel.QueueBindAsync("account.audit", "account.events", "#", cancellationToken: cancellationToken);
-        logger.LogInformation("Привязки очередей к exchange 'account.events' успешно созданы.");
+        await channel.QueueBindAsync("account.crm", exchangeName, "account.*", cancellationToken: cancellationToken);
+        await channel.QueueBindAsync("account.notifications", exchangeName, "money.*", cancellationToken: cancellationToken);
+        await channel.QueueBindAsync("account.antifraud", exchangeName, "client.*", cancellationToken: cancellationToken);
+        await channel.QueueBindAsync("account.audit", exchangeName, "#", cancellationToken: cancellationToken);
+        logger.LogInformation("Привязки очередей к exchange {exchangeName} успешно созданы.", exchangeName);
         
         logger.LogInformation("Инициализация топологии RabbitMQ завершена.");
     }

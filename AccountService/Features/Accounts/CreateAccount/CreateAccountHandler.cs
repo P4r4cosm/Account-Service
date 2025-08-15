@@ -45,26 +45,26 @@ public class CreateAccountHandler(
             var correlationId = correlationIdProvider.GetCorrelationId();
             var causationId = request.CommandId;
             
-            var accountOpenedEvent = new AccountOpenedEvent(correlationId,causationId)
+            var accountOpenedEvent = new AccountOpenedEvent
             {
                 AccountId = account.Id,
                 OwnerId = account.OwnerId,
                 Currency = account.Currency,
                 Type = account.AccountType.ToString()
             };
+            var eventEnvelope = new EventEnvelope<AccountOpenedEvent>(accountOpenedEvent, correlationId, causationId);
 
             // 4. Создаем и добавляем сообщение в Outbox
             var outboxMessage = new OutboxMessage
             {
-                Id = accountOpenedEvent.EventId,
+                Id = eventEnvelope.EventId,
                 Type = nameof(AccountOpenedEvent), // Безопасное получение имени типа
-                Payload = JsonSerializer.Serialize(accountOpenedEvent),
-                OccurredAt = accountOpenedEvent.OccurredAt,
+                Payload = JsonSerializer.Serialize(eventEnvelope),
+                OccurredAt = eventEnvelope.OccurredAt,
                 CorrelationId = correlationId
             };
             outboxMessageRepository.Add(outboxMessage);
-
-
+            
             // Пытаемся зафиксировать изменения
             await unitOfWork.SaveChangesAsync(cancellationToken);
 

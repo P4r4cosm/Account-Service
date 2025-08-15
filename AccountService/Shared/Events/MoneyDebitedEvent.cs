@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace AccountService.Shared.Events;
 
-public class MoneyDebitedEvent(Guid correlationId, Guid causationId) : DomainEvent(correlationId, causationId)
+public class MoneyDebitedEvent
 {
     [JsonPropertyName("accountId")]
     public Guid AccountId { get; set; }

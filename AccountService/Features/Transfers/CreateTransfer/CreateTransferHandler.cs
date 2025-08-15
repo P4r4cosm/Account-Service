@@ -60,7 +60,7 @@ public class CreateTransferHandler(
             // Генерируем уникальный ID для самой операции перевода.
             var transferId = Guid.NewGuid();
 
-            var transferCompletedEvent = new TransferCompletedEvent(correlationId, causationId)
+            var transferCompletedEvent = new TransferCompletedEvent
             {
                 SourceAccountId = fromAccount.Id,
                 DestinationAccountId = toAccount.Id,
@@ -68,15 +68,17 @@ public class CreateTransferHandler(
                 Currency = fromAccount.Currency,
                 TransferId = transferId
             };
+            var eventEnvelope = new EventEnvelope<TransferCompletedEvent>(transferCompletedEvent, correlationId, causationId);
+
             
             // 3. Создаем и добавляем сообщение в Outbox
             var outboxMessage = new OutboxMessage
             {
-                Id = transferCompletedEvent.EventId,
-                Type = transferCompletedEvent.GetType().Name,
-                Payload = JsonSerializer.Serialize(transferCompletedEvent, transferCompletedEvent.GetType()),
-                OccurredAt = transferCompletedEvent.OccurredAt,
-                CorrelationId = transferCompletedEvent.Meta.CorrelationId
+                Id = eventEnvelope.EventId,
+                Type = nameof(TransferCompletedEvent),
+                Payload = JsonSerializer.Serialize(eventEnvelope),
+                OccurredAt = eventEnvelope.OccurredAt,
+                CorrelationId = eventEnvelope.Meta.CorrelationId
             };
             outboxMessageRepository.Add(outboxMessage);
             

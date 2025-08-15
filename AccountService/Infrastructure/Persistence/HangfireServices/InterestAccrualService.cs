@@ -42,21 +42,22 @@ public class InterestAccrualService(
                 // 2. Проверяем, что результат есть и что-то действительно было начислено.
                 if (accrualResult is null || !accrualResult.WasAccrued) continue;
                 // 3. Создаем доменное событие, используя точные данные из БД.
-                var interestAccruedEvent = new InterestAccruedEvent(correlationId, causationId)
+                var interestAccruedEvent = new InterestAccruedEvent
                 {
                     AccountId = id,
                     Amount = accrualResult.AccruedAmount,
                     PeriodFrom = accrualResult.PeriodFrom!.Value,
                     PeriodTo = accrualResult.PeriodTo!.Value
                 };
+                var eventEnvelope = new EventEnvelope<InterestAccruedEvent>(interestAccruedEvent, correlationId, causationId);
 
                 // 4. Создаем и добавляем сообщение в Outbox.
                 var outboxMessage = new OutboxMessage
                 {
-                    Id = interestAccruedEvent.EventId,
+                    Id = eventEnvelope.EventId,
                     Type = nameof(InterestAccruedEvent),
-                    Payload = JsonSerializer.Serialize<DomainEvent>(interestAccruedEvent),
-                    OccurredAt = interestAccruedEvent.OccurredAt,
+                    Payload = JsonSerializer.Serialize(eventEnvelope),
+                    OccurredAt = eventEnvelope.OccurredAt,
                     CorrelationId = correlationId
                 };
                 outboxMessageRepository.Add(outboxMessage);

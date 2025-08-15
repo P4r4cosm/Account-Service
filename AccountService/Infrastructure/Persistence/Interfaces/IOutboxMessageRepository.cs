@@ -13,5 +13,6 @@ public interface IOutboxMessageRepository
     /// <param name="message">Сообщение для добавления.</param>
     void Add(OutboxMessage message);
     
-  
+    void Update(OutboxMessage message); // Добавить этот метод
+    Task<List<OutboxMessage>> GetUnprocessedMessagesAsync(CancellationToken cancellationToken); // И этот
 }

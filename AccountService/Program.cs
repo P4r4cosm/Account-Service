@@ -2,13 +2,13 @@ using System.Text.Json.Serialization;
 using AccountService.Infrastructure.Persistence;
 using AccountService.Infrastructure.Persistence.HangfireServices;
 using AccountService.Infrastructure.Persistence.Interfaces;
+using AccountService.Infrastructure.Persistence.MessageBroker;
 using AccountService.Infrastructure.Persistence.Repositories;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Behaviors;
 using AccountService.Shared.Domain;
 using AccountService.Shared.Extensions;
 using AccountService.Shared.Filters;
-using AccountService.Shared.MessageBroker;
 using AccountService.Shared.Middleware;
 using AccountService.Shared.Options;
 using AccountService.Shared.Providers;
@@ -40,18 +40,17 @@ public class Program
 
     private static async Task ConfigureServices(WebApplicationBuilder builder)
     {
-        
         // Регистрируем IHttpContextAccessor, чтобы иметь доступ к HttpContext из сервисов
         builder.Services.AddHttpContextAccessor();
 
         // Регистрируем наш провайдер как Scoped (он будет жить в рамках одного HTTP-запроса)
         builder.Services.AddScoped<ICorrelationIdProvider, CorrelationIdProvider>();
-        
-        
+
+
         //Options
         builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
-        
-        
+
+
         //RabbitMq
         var rabbitMqOptions = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqOptions>();
         if (rabbitMqOptions is null)
@@ -64,12 +63,13 @@ public class Program
             Password = rabbitMqOptions.Password,
             VirtualHost = rabbitMqOptions.VirtualHost
         };
-        
+
         var connection = await factory.CreateConnectionAsync();
-        
+
         builder.Services.AddSingleton(connection);
-        
+
         builder.Services.AddHostedService<RabbitMqInitializer>();
+        builder.Services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
         
         // Controllers + JSON
         builder.Services.AddControllers()
@@ -87,6 +87,9 @@ public class Program
         builder.Services.AddScoped<IInterestAccrualService, InterestAccrualService>();
         builder.Services.AddScoped<IInterestAccrualOrchestrator, InterestAccrualOrchestrator>();
 
+        
+        builder.Services.AddScoped<OutboxProcessorJob>(); // Регистрируем нашу задачу как Scoped
+        
         // PostgreSQL
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -162,7 +165,7 @@ public class Program
         app.UseCors("AllowAll");
 
         app.UseMiddleware<CorrelationIdMiddleware>();
-        
+
         // Swagger in dev
         if (app.Environment.IsDevelopment())
         {
@@ -191,6 +194,12 @@ public class Program
             "daily-interest-accrual",
             orchestrator => orchestrator.StartAccrualProcess(),
             Cron.Daily,
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        RecurringJob.AddOrUpdate<OutboxProcessorJob>(
+            "process-outbox-messages", // Уникальный идентификатор задачи
+            job => job.ProcessOutboxMessagesAsync(JobCancellationToken.Null), // Метод, который нужно вызывать
+            "*/10 * * * * *", // CRON-выражение для запуска каждые 10 секунд
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
     }
 }

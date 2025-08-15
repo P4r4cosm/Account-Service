@@ -48,18 +48,19 @@ public class RegisterTransactionHandler(
                     "Недостаточно средств на счёте для списания."));
 
             account.Balance += newTransaction.Type == TransactionType.Credit ? request.Amount : -request.Amount;
+            
+            
             var causationId = request.CommandId;
             var correlationId = correlationIdProvider.GetCorrelationId();
-            DomainEvent domainEvent = newTransaction.Type == TransactionType.Debit
-                ? new MoneyDebitedEvent(correlationId, causationId)
-                {
-                    AccountId = newTransaction.AccountId,
-                    Currency = newTransaction.Currency,
-                    Amount = newTransaction.Amount,
-                    OperationId = newTransaction.Id,
-                    Reason = newTransaction.Description
-                }
-                : new MoneyCreditedEvent(correlationId, causationId)
+            string payloadJson;
+            string eventType;
+            Guid eventId;
+            DateTime occurredAt;
+
+            if (newTransaction.Type == TransactionType.Credit)
+            {
+                // Создаем DTO с полезной нагрузкой
+                var moneyCreditedPayload = new MoneyCreditedEvent
                 {
                     AccountId = newTransaction.AccountId,
                     Currency = newTransaction.Currency,
@@ -67,15 +68,47 @@ public class RegisterTransactionHandler(
                     OperationId = newTransaction.Id
                 };
 
+                //  Оборачиваем в "конверт"
+                var eventEnvelope =
+                    new EventEnvelope<MoneyCreditedEvent>(moneyCreditedPayload, correlationId, causationId);
+
+                //  Заполняем наши переменные
+                payloadJson = JsonSerializer.Serialize(eventEnvelope);
+                eventType = nameof(MoneyCreditedEvent);
+                eventId = eventEnvelope.EventId;
+                occurredAt = eventEnvelope.OccurredAt;
+            }
+            else // TransactionType.Debit
+            {
+                //  Создаем DTO с полезной нагрузкой
+                var moneyDebitedPayload = new MoneyDebitedEvent
+                {
+                    AccountId = newTransaction.AccountId,
+                    Currency = newTransaction.Currency,
+                    Amount = newTransaction.Amount,
+                    OperationId = newTransaction.Id,
+                    Reason = newTransaction.Description 
+                };
+
+                //  Оборачиваем в "конверт"
+                var eventEnvelope =
+                    new EventEnvelope<MoneyDebitedEvent>(moneyDebitedPayload, correlationId, causationId);
+
+                //  Заполняем наши переменные
+                payloadJson = JsonSerializer.Serialize(eventEnvelope);
+                eventType = nameof(MoneyDebitedEvent);
+                eventId = eventEnvelope.EventId;
+                occurredAt = eventEnvelope.OccurredAt;
+            }
+
+            // 5. Создаем OutboxMessage ОДИН РАЗ, используя подготовленные данные
             var outboxMessage = new OutboxMessage
             {
-                Id = domainEvent.EventId,
-                // Используем GetType().Name, чтобы получить имя конкретного класса (MoneyCreditedEvent и т.д.)
-                Type = domainEvent.GetType().Name,
-                Payload = JsonSerializer.Serialize(domainEvent,
-                    domainEvent.GetType()), // Важно передать тип для полиморфной сериализации
-                OccurredAt = domainEvent.OccurredAt,
-                CorrelationId = domainEvent.Meta.CorrelationId
+                Id = eventId,
+                Type = eventType,
+                Payload = payloadJson,
+                OccurredAt = occurredAt,
+                CorrelationId = correlationId
             };
             outboxMessageRepository.Add(outboxMessage);
 

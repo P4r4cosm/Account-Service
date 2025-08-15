@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace AccountService.Shared.Events;
 
-public class TransferCompletedEvent(Guid correlationId, Guid causationId) : DomainEvent(correlationId, causationId)
+public class TransferCompletedEvent
 {
     [JsonPropertyName("sourceAccountId")]
     public Guid SourceAccountId { get; set; }
