@@ -9,7 +9,9 @@ using AccountService.Shared.Domain;
 using AccountService.Shared.Extensions;
 using AccountService.Shared.Filters;
 using AccountService.Shared.MessageBroker;
+using AccountService.Shared.Middleware;
 using AccountService.Shared.Options;
+using AccountService.Shared.Providers;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -38,6 +40,13 @@ public class Program
 
     private static async Task ConfigureServices(WebApplicationBuilder builder)
     {
+        
+        // Регистрируем IHttpContextAccessor, чтобы иметь доступ к HttpContext из сервисов
+        builder.Services.AddHttpContextAccessor();
+
+        // Регистрируем наш провайдер как Scoped (он будет жить в рамках одного HTTP-запроса)
+        builder.Services.AddScoped<ICorrelationIdProvider, CorrelationIdProvider>();
+        
         
         //Options
         builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
@@ -85,6 +94,7 @@ public class Program
         // Repository + UnitOfWork
         builder.Services.AddScoped<IAccountRepository, PostgresAccountRepository>();
         builder.Services.AddScoped<ITransactionRepository, PostgresTransactionRepository>();
+        builder.Services.AddScoped<IOutboxMessageRepository, PostgresOutboxMessageRepository>();
         builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
         // CORS
@@ -151,6 +161,8 @@ public class Program
         // CORS
         app.UseCors("AllowAll");
 
+        app.UseMiddleware<CorrelationIdMiddleware>();
+        
         // Swagger in dev
         if (app.Environment.IsDevelopment())
         {

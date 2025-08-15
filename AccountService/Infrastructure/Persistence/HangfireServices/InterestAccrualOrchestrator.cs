@@ -31,7 +31,7 @@ public class InterestAccrualOrchestrator(
             // Ставим в очередь задачу для обработки ОДНОГО батча.
             // Hangfire сам позаботится о ее выполнении.
             backgroundJobClient.Enqueue<IInterestAccrualService>(
-                service => service.AccrueInterestForBatchAsync(pageNumber, BatchSize, JobCancellationToken.Null));
+                service => service.AccrueInterestForBatchAsync(pageNumber, BatchSize, null, JobCancellationToken.Null));
         }
 
         logger.LogInformation("Все {TotalBatches} задач для начисления процентов успешно поставлены в очередь.", totalBatches);

@@ -3,6 +3,7 @@ using System;
 using AccountService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AccountService.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250815142449_AddAccrueInterestFunctionAndResultType")]
+    partial class AddAccrueInterestFunctionAndResultType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -113,23 +116,6 @@ namespace AccountService.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex(new[] { "Timestamp" }, "IX_Transactions_Date_Gist"), "gist");
 
                     b.ToTable("Transactions");
-                });
-
-            modelBuilder.Entity("AccountService.Shared.Domain.AccrualResult", b =>
-                {
-                    b.Property<decimal>("AccruedAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("accrued_amount");
-
-                    b.Property<DateTime?>("PeriodFrom")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("period_from");
-
-                    b.Property<DateTime?>("PeriodTo")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("period_to");
-
-                    b.ToTable("AccrualResults");
                 });
 
             modelBuilder.Entity("AccountService.Shared.Domain.InboxConsumedMessage", b =>

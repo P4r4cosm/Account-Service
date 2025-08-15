@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using AccountService.Shared.Domain;
 using MediatR;
 
@@ -12,6 +13,13 @@ namespace AccountService.Features.Accounts.CreateAccount;
 [SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class CreateAccountCommand :  IRequest<MbResult<AccountDto>>
 {
+    
+    /// <summary>
+    /// ID комманды
+    /// </summary>
+    [JsonIgnore]
+    public Guid CommandId { get; set; }
+    
     /// <summary>
     /// Уникальный идентификатор владельца счёта (клиента).
     /// </summary>
@@ -39,4 +47,12 @@ public class CreateAccountCommand :  IRequest<MbResult<AccountDto>>
     /// </summary>
     /// <example>5.5</example>
     public decimal? InterestRate { get; set; }
+    
+    /// <summary>
+    /// Необязательный идентификатор корреляции для сквозной трассировки.
+    /// Если не предоставлен клиентом, будет сгенерирован автоматически.
+    /// Это свойство не биндится из тела запроса, а устанавливается в контроллере.
+    /// </summary>
+    [JsonIgnore]
+    public Guid? CorrelationId { get; set; }
 }

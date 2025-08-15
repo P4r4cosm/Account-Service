@@ -15,7 +15,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
     public DbSet<InboxConsumedMessage> InboxConsumedMessages { get; set; }
 
-    private IDbContextTransaction? _currentTransaction; // Поле для хранения активной транзакции
+    private IDbContextTransaction? _currentTransaction; 
+    
+    public DbSet<AccrualResult> AccrualResults { get; set; }
+
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -90,6 +93,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // Индекс для быстрого поиска по Id, если понадобится найти все обработки одного сообщения
             entity.HasIndex(m => m.Id);
         });
+        
+        modelBuilder.Entity<AccrualResult>().HasNoKey();
     }
 
     public async Task BeginTransactionAsync(IsolationLevel isolationLevel,

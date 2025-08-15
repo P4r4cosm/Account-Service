@@ -1,37 +1,71 @@
 using System.Data;
+using System.Text.Json;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Events;
 using Hangfire;
+using Hangfire.Server;
 
 namespace AccountService.Infrastructure.Persistence.HangfireServices;
 
 public class InterestAccrualService(
     IAccountRepository accountRepository,
+    IOutboxMessageRepository outboxMessageRepository,
     ILogger<InterestAccrualService> logger,
     IUnitOfWork unitOfWork)
     : IInterestAccrualService
 {
-
-
-    // Переименовываем и изменяем сигнатуру старого метода
-    public async Task AccrueInterestForBatchAsync(int pageNumber, int pageSize, IJobCancellationToken cancellationToken)
+    public async Task AccrueInterestForBatchAsync(int pageNumber, int pageSize, PerformContext? performContext,
+        IJobCancellationToken cancellationToken)
     {
         var token = cancellationToken.ShutdownToken;
-        logger.LogInformation("Начало обработки батча #{PageNumber}.", pageNumber);
-        
+        var correlationId = Guid.NewGuid();
+        var causationId = Guid.TryParse(performContext?.BackgroundJob.Id, out var jobId) ? jobId : Guid.NewGuid();
+        logger.LogInformation(
+            "Начало обработки батча #{PageNumber}. CorrelationId: {CorrelationId}, CausationId (JobId): {CausationId}",
+            pageNumber, correlationId, causationId);
+
         await unitOfWork.BeginTransactionAsync(IsolationLevel.RepeatableRead, token);
         try
         {
-            var accountIds = (List<Guid>)await accountRepository.GetPagedAccountIdsForAccrueInterestAsync(pageNumber, pageSize, token) ;
-            
+            var accountIds =
+                (List<Guid>)await accountRepository.GetPagedAccountIdsForAccrueInterestAsync(pageNumber, pageSize,
+                    token);
+
             foreach (var id in accountIds)
             {
                 token.ThrowIfCancellationRequested();
-                await accountRepository.AccrueInterest(id, token);
+
+                // 1. Вызываем наш новый, мощный метод репозитория
+                var accrualResult = await accountRepository.AccrueInterest(id, token);
+
+                // 2. Проверяем, что результат есть и что-то действительно было начислено.
+                if (accrualResult is null || !accrualResult.WasAccrued) continue;
+                // 3. Создаем доменное событие, используя точные данные из БД.
+                var interestAccruedEvent = new InterestAccruedEvent(correlationId, causationId)
+                {
+                    AccountId = id,
+                    Amount = accrualResult.AccruedAmount,
+                    PeriodFrom = accrualResult.PeriodFrom!.Value,
+                    PeriodTo = accrualResult.PeriodTo!.Value
+                };
+
+                // 4. Создаем и добавляем сообщение в Outbox.
+                var outboxMessage = new OutboxMessage
+                {
+                    Id = interestAccruedEvent.EventId,
+                    Type = nameof(InterestAccruedEvent),
+                    Payload = JsonSerializer.Serialize<DomainEvent>(interestAccruedEvent),
+                    OccurredAt = interestAccruedEvent.OccurredAt,
+                    CorrelationId = correlationId
+                };
+                outboxMessageRepository.Add(outboxMessage);
             }
 
+            await unitOfWork.SaveChangesAsync(token);
             await unitOfWork.CommitTransactionAsync(token);
-            logger.LogInformation("Батч #{PageNumber} успешно обработан. Счетов: {Count}", pageNumber, accountIds.Count);
+            logger.LogInformation("Батч #{PageNumber} успешно обработан. Счетов: {Count}", pageNumber,
+                accountIds.Count);
         }
         catch (OperationCanceledException)
         {
@@ -42,8 +76,7 @@ public class InterestAccrualService(
         {
             logger.LogError(ex, "Критическая ошибка при обработке батча #{PageNumber}. Откат транзакции.", pageNumber);
             await unitOfWork.RollbackTransactionAsync(CancellationToken.None);
-            throw; // Важно пробросить, чтобы Hangfire пометил этот батч как Failed
+            throw;
         }
     }
-    
 }

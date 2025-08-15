@@ -49,11 +49,13 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
         return Task.CompletedTask;
     }
 
-    public async Task AccrueInterest(Guid accountId,CancellationToken cancellationToken)
+    public async Task<AccrualResult?> AccrueInterest(Guid accountId, CancellationToken cancellationToken)
     {
-        await dbContext.Database.ExecuteSqlAsync(
-            $"CALL accrue_interest({accountId})",
-            cancellationToken);
+        var result = await dbContext.Set<AccrualResult>()
+            .FromSqlRaw("SELECT * FROM accrue_interest({0})", accountId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return result;
     }
 
     public async Task<int> GetAccountCountForAccrueInterestAsync(CancellationToken cancellationToken)
@@ -64,7 +66,8 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
     }
 
     // Заменяем старый метод GetAccountIdsForAccrueInterestAsync на этот
-    public async Task<IEnumerable<Guid>> GetPagedAccountIdsForAccrueInterestAsync(int pageNumber, int pageSize, CancellationToken cancellationToken)
+    public async Task<IEnumerable<Guid>> GetPagedAccountIdsForAccrueInterestAsync(int pageNumber, int pageSize,
+        CancellationToken cancellationToken)
     {
         return await dbContext.Accounts
             .Where(a => a.AccountType == AccountType.Deposit && a.CloseDate == null && a.Balance > 0)

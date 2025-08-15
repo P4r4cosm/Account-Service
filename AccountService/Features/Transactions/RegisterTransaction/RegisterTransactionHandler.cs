@@ -1,6 +1,9 @@
 using System.Data;
+using System.Text.Json;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Events;
+using AccountService.Shared.Providers;
 using AutoMapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +15,8 @@ public class RegisterTransactionHandler(
     ILogger<RegisterTransactionHandler> logger,
     ITransactionRepository transactionRepository,
     IUnitOfWork unitOfWork,
+    IOutboxMessageRepository outboxMessageRepository,
+    ICorrelationIdProvider correlationIdProvider,
     IMapper mapper)
     : IRequestHandler<RegisterTransactionCommand, MbResult<TransactionDto>>
 {
@@ -43,6 +48,36 @@ public class RegisterTransactionHandler(
                     "Недостаточно средств на счёте для списания."));
 
             account.Balance += newTransaction.Type == TransactionType.Credit ? request.Amount : -request.Amount;
+            var causationId = request.CommandId;
+            var correlationId = correlationIdProvider.GetCorrelationId();
+            DomainEvent domainEvent = newTransaction.Type == TransactionType.Debit
+                ? new MoneyDebitedEvent(correlationId, causationId)
+                {
+                    AccountId = newTransaction.AccountId,
+                    Currency = newTransaction.Currency,
+                    Amount = newTransaction.Amount,
+                    OperationId = newTransaction.Id,
+                    Reason = newTransaction.Description
+                }
+                : new MoneyCreditedEvent(correlationId, causationId)
+                {
+                    AccountId = newTransaction.AccountId,
+                    Currency = newTransaction.Currency,
+                    Amount = newTransaction.Amount,
+                    OperationId = newTransaction.Id
+                };
+
+            var outboxMessage = new OutboxMessage
+            {
+                Id = domainEvent.EventId,
+                // Используем GetType().Name, чтобы получить имя конкретного класса (MoneyCreditedEvent и т.д.)
+                Type = domainEvent.GetType().Name,
+                Payload = JsonSerializer.Serialize(domainEvent,
+                    domainEvent.GetType()), // Важно передать тип для полиморфной сериализации
+                OccurredAt = domainEvent.OccurredAt,
+                CorrelationId = domainEvent.Meta.CorrelationId
+            };
+            outboxMessageRepository.Add(outboxMessage);
 
             // Явно добавляем новую транзакцию через ее собственный репозиторий
             await transactionRepository.AddAsync(newTransaction, cancellationToken);

@@ -22,7 +22,6 @@ namespace AccountService.Features.Accounts;
 [Route("api/[controller]")]
 public class AccountsController(IMediator mediator) : BaseApiController(mediator)
 {
-
     // --- CREATE ---
 
     /// <summary>
@@ -47,6 +46,7 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     /// - interestRate: опционально, но если указано, должно быть >= 0
     /// </remarks>
     /// <param name="command">Данные для создания счёта.</param>
+    /// <param name="correlationId">Необязательный идентификатор корреляции (из заголовка X-Correlation-ID).</param>
     /// <returns>Результат операции в формате MbResult. При успехе поле 'value' содержит данные созданного счёта.</returns>
     /// <response code="201">Счёт успешно создан. В теле ответа возвращается объект MbResult с данными счёта.</response>
     /// <response code="400">Некорректные данные в запросе. В теле ответа возвращается объект MbResult с деталями ошибки.</response>
@@ -57,14 +57,20 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> CreateAccount(CreateAccountCommand command)
+    public async Task<IActionResult> CreateAccount([FromBody] CreateAccountCommand command,
+        [FromHeader(Name = "X-Correlation-ID")]
+        Guid? correlationId)
     {
+        command.CorrelationId = correlationId;
+        command.CommandId = Guid.NewGuid();
         var result = await Mediator.Send(command);
 
         // Проверяем, что результат успешный и содержит значение, прежде чем обращаться к result.Value
-        return !result.IsSuccess ?
+        return !result.IsSuccess
+            ?
             // Если произошла ошибка (например, валидации), используем стандартный обработчик
-            HandleResult(result) : HandleCreationResult(result, nameof(GetAccountById), new { accountId = result.Value!.Id });
+            HandleResult(result)
+            : HandleCreationResult(result, nameof(GetAccountById), new { accountId = result.Value!.Id });
     }
 
     // --- READ ---
@@ -247,5 +253,4 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
-
 }

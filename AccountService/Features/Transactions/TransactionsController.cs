@@ -35,6 +35,7 @@ public class TransactionsController(IMediator mediator) : BaseApiController(medi
     /// 
     /// </remarks>
     /// <param name="accountId">ID счёта, по которому проводится транзакция.</param>
+    /// <param name="correlationId">Необязательный идентификатор корреляции (из заголовка X-Correlation-ID).</param>
     /// <param name="command">Данные для создания транзакции.</param>
     /// <returns>Результат операции в формате MbResult. При успехе 'value' содержит данные созданной транзакции.</returns>
     /// <response code="201">Транзакция успешно создана. В теле ответа возвращается объект MbResult с данными транзакции.</response>
@@ -46,9 +47,12 @@ public class TransactionsController(IMediator mediator) : BaseApiController(medi
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> RegisterTransaction([FromRoute] Guid accountId, [FromBody] RegisterTransactionCommand command)
+    public async Task<IActionResult> RegisterTransaction([FromRoute] Guid accountId, [FromBody] RegisterTransactionCommand command,
+        [FromHeader(Name = "X-Correlation-ID")] Guid? correlationId)
     {
         command.AccountId = accountId;
+        command.CorrelationId = correlationId;
+        command.CommandId = Guid.NewGuid();
         var result = await Mediator.Send(command);
 
         // Проверяем, что результат успешный и содержит значение, прежде чем обращаться к result.Value

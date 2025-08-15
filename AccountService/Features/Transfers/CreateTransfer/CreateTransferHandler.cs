@@ -1,8 +1,11 @@
 using System.Data;
+using System.Text.Json;
 using AccountService.Features.Accounts;
 using AccountService.Features.Transactions;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Events;
+using AccountService.Shared.Providers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -13,6 +16,8 @@ public class CreateTransferHandler(
     IAccountRepository accountRepository,
     ITransactionRepository transactionRepository,
     IUnitOfWork unitOfWork,
+    IOutboxMessageRepository outboxMessageRepository,
+    ICorrelationIdProvider correlationIdProvider,
     ILogger<CreateTransferHandler> logger)
     : IRequestHandler<CreateTransferCommand, MbResult>
 {
@@ -48,6 +53,35 @@ public class CreateTransferHandler(
             await transactionRepository.AddAsync(debitTransaction, cancellationToken);
             await transactionRepository.AddAsync(creditTransaction, cancellationToken);
 
+            var correlationId = correlationIdProvider.GetCorrelationId();
+            // В качестве ID причины используем ID самой команды на перевод
+            var causationId = request.CommandId; 
+
+            // Генерируем уникальный ID для самой операции перевода.
+            var transferId = Guid.NewGuid();
+
+            var transferCompletedEvent = new TransferCompletedEvent(correlationId, causationId)
+            {
+                SourceAccountId = fromAccount.Id,
+                DestinationAccountId = toAccount.Id,
+                Amount = request.Amount,
+                Currency = fromAccount.Currency,
+                TransferId = transferId
+            };
+            
+            // 3. Создаем и добавляем сообщение в Outbox
+            var outboxMessage = new OutboxMessage
+            {
+                Id = transferCompletedEvent.EventId,
+                Type = transferCompletedEvent.GetType().Name,
+                Payload = JsonSerializer.Serialize(transferCompletedEvent, transferCompletedEvent.GetType()),
+                OccurredAt = transferCompletedEvent.OccurredAt,
+                CorrelationId = transferCompletedEvent.Meta.CorrelationId
+            };
+            outboxMessageRepository.Add(outboxMessage);
+            
+            
+            
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 

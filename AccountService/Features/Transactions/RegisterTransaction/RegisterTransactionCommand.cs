@@ -13,7 +13,12 @@ namespace AccountService.Features.Transactions.RegisterTransaction;
 public class RegisterTransactionCommand : IRequest<MbResult<TransactionDto>>
 {
     
-
+    /// <summary>
+    /// ID комманды
+    /// </summary>
+    [JsonIgnore]
+    public Guid CommandId { get; set; }
+    
     /// <summary>
     /// ID счёта, по которому проводится транзакция.
     /// </summary>
@@ -36,4 +41,12 @@ public class RegisterTransactionCommand : IRequest<MbResult<TransactionDto>>
     /// </summary>
     /// <example>Пополнение наличными в кассе</example>
     public required string Description { get; set; }
+    
+    /// <summary>
+    /// Необязательный идентификатор корреляции для сквозной трассировки.
+    /// Если не предоставлен клиентом, будет сгенерирован автоматически.
+    /// Это свойство не биндится из тела запроса, а устанавливается в контроллере.
+    /// </summary>
+    [JsonIgnore]
+    public Guid? CorrelationId { get; set; }
 }
