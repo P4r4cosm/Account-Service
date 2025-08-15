@@ -8,12 +8,15 @@ using AccountService.Shared.Behaviors;
 using AccountService.Shared.Domain;
 using AccountService.Shared.Extensions;
 using AccountService.Shared.Filters;
+using AccountService.Shared.MessageBroker;
+using AccountService.Shared.Options;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
 
 
 namespace AccountService;
@@ -24,7 +27,7 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        ConfigureServices(builder);
+        await ConfigureServices(builder);
 
         var app = builder.Build();
 
@@ -33,8 +36,32 @@ public class Program
         await app.RunAsync();
     }
 
-    private static void ConfigureServices(WebApplicationBuilder builder)
+    private static async Task ConfigureServices(WebApplicationBuilder builder)
     {
+        
+        //Options
+        builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
+        
+        
+        //RabbitMq
+        var rabbitMqOptions = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqOptions>();
+        if (rabbitMqOptions is null)
+            throw new InvalidOperationException("RabbitMQ configuration is missing or invalid.");
+        var factory = new ConnectionFactory
+        {
+            HostName = rabbitMqOptions.HostName,
+            Port = rabbitMqOptions.Port,
+            UserName = rabbitMqOptions.UserName,
+            Password = rabbitMqOptions.Password,
+            VirtualHost = rabbitMqOptions.VirtualHost
+        };
+        
+        var connection = await factory.CreateConnectionAsync();
+        
+        builder.Services.AddSingleton(connection);
+        
+        builder.Services.AddHostedService<RabbitMqInitializer>();
+        
         // Controllers + JSON
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
