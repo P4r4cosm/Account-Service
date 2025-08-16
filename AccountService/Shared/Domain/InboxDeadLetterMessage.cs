@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace AccountService.Shared.Domain;
 
+[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")] // Resharper жалуется на set, они нужны для EF core
 public class InboxDeadLetterMessage
 {
    

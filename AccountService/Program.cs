@@ -121,7 +121,7 @@ public class Program
             }));
 
         // 2. Добавление фонового обработчика HangFire
-        //builder.Services.AddHangfireServer();
+        builder.Services.AddHangfireServer();
 
         // Auth & Authorization
         if (builder.Environment.IsEnvironment("Testing"))
@@ -194,16 +194,16 @@ public class Program
         app.MapControllers();
         // app.MapControllers().RequireAuthorization(); 
 
-        // RecurringJob.AddOrUpdate<IInterestAccrualOrchestrator>(
-        //     "daily-interest-accrual",
-        //     orchestrator => orchestrator.StartAccrualProcess(),
-        //     Cron.Daily,
-        //     new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
-        //
-        // RecurringJob.AddOrUpdate<OutboxProcessorJob>(
-        //     "process-outbox-messages", // Уникальный идентификатор задачи
-        //     job => job.ProcessOutboxMessagesAsync(JobCancellationToken.Null), // Метод, который нужно вызывать
-        //     "*/10 * * * * *", // CRON-выражение для запуска каждые 10 секунд
-        //     new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+        RecurringJob.AddOrUpdate<IInterestAccrualOrchestrator>(
+            "daily-interest-accrual",
+            orchestrator => orchestrator.StartAccrualProcess(),
+            Cron.Daily,
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+        
+        RecurringJob.AddOrUpdate<OutboxProcessorJob>(
+            "process-outbox-messages", // Уникальный идентификатор задачи
+            job => job.ProcessOutboxMessagesAsync(JobCancellationToken.Null), // Метод, который нужно вызывать
+            "*/10 * * * * *", // CRON-выражение для запуска каждые 10 секунд
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
     }
 }

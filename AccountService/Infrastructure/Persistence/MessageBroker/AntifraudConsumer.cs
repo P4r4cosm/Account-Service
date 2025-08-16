@@ -28,7 +28,7 @@ public class AntifraudConsumer(
                     logger.LogInformation("Processing ClientBlocked event for ClientId: {ClientId}",
                         blockedEvent.Payload.ClientId);
                     var frozenCount =
-                        await accountRepository.FreezeAccountsByOwnerAsync(blockedEvent.Payload.ClientId, default);
+                        await accountRepository.FreezeAccountsByOwnerAsync(blockedEvent.Payload.ClientId, CancellationToken.None);
                     logger.LogInformation("Froze {Count} accounts for ClientId: {ClientId}", frozenCount,
                         blockedEvent.Payload.ClientId);
                 }
@@ -42,7 +42,7 @@ public class AntifraudConsumer(
                     logger.LogInformation("Processing ClientUnblocked event for ClientId: {ClientId}",
                         unblockedEvent.Payload.ClientId);
                     var unfrozenCount =
-                        await accountRepository.UnfreezeAccountsByOwnerAsync(unblockedEvent.Payload.ClientId, default);
+                        await accountRepository.UnfreezeAccountsByOwnerAsync(unblockedEvent.Payload.ClientId, CancellationToken.None);
                     logger.LogInformation("Unfroze {Count} accounts for ClientId: {ClientId}", unfrozenCount,
                         unblockedEvent.Payload.ClientId);
                 }

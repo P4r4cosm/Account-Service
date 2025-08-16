@@ -64,5 +64,5 @@ public class AccountDto
     /// </summary>
     // ReSharper disable once PropertyCanBeMadeInitOnly.Global  Resharper жалуется на "неиспользуемый" set, т.к. Dto заполняется через AutoMapper,
     // то в коде они напрямую не используются
-    public bool IsFrozen { get; set; } = false; // По умолчанию счет не заморожен
+    public bool IsFrozen { get; set; }  // По умолчанию счет не заморожен
 }

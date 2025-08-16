@@ -30,5 +30,5 @@ public class Account
     /// Расходные операции по такому счету запрещены.
     /// </summary>
     //ReSharper disable once PropertyCanBeMadeInitOnly.Global  Resharper считает, что set не нужен, он необходим для EF core.
-    public bool IsFrozen { get; set; } = false; // По умолчанию счет не заморожен
+    public bool IsFrozen { get; set; } // По умолчанию счет не заморожен
 }
