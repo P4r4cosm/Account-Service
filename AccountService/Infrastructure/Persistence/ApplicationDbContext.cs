@@ -14,11 +14,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
     public DbSet<InboxConsumedMessage> InboxConsumedMessages { get; set; }
+    public DbSet<InboxDeadLetterMessage> InboxDeadLetterMessages { get; set; }
 
-    private IDbContextTransaction? _currentTransaction; 
-    
+    private IDbContextTransaction? _currentTransaction;
+
     public DbSet<AccrualResult> AccrualResults { get; set; }
-
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -56,7 +56,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasMethod("gist")
                 .HasDatabaseName("IX_Transactions_Date_Gist");
         });
-        
+
         // Конфигурация для таблицы OutboxMessages
         modelBuilder.Entity<OutboxMessage>(entity =>
         {
@@ -83,17 +83,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<InboxConsumedMessage>(entity =>
         {
             entity.ToTable("inbox_consumed_messages");
-
-            // Согласно заданию, message_id - это PK.
-            // Однако, чтобы разные обработчики (Antifraud, Audit) могли обработать одно и то же
-            // сообщение независимо, лучшей практикой является составной ключ.
-            // Это обеспечивает максимальную идемпотентность и производительность.
-            entity.HasKey(m => new { m.Id, m.Handler });
-
-            // Индекс для быстрого поиска по Id, если понадобится найти все обработки одного сообщения
-            entity.HasIndex(m => m.Id);
+            entity.HasKey(m => m.MessageId);
         });
-        
+        modelBuilder.Entity<InboxDeadLetterMessage>(entity =>
+        {
+            entity.ToTable("inbox_dead_letters");
+            entity.HasKey(m => m.MessageId);
+            entity.HasIndex(m => m.ReceivedAt);
+        });
+
         modelBuilder.Entity<AccrualResult>().HasNoKey();
     }
 

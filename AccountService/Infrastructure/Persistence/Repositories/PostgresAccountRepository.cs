@@ -78,6 +78,20 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<int> FreezeAccountsByOwnerAsync(Guid ownerId, CancellationToken cancellationToken)
+    {
+        return await dbContext.Accounts
+            .Where(a => a.OwnerId == ownerId && !a.IsFrozen)
+            .ExecuteUpdateAsync(updates => updates.SetProperty(account => account.IsFrozen, true), cancellationToken);
+    }
+
+    public async Task<int> UnfreezeAccountsByOwnerAsync(Guid ownerId, CancellationToken cancellationToken)
+    {
+        return await dbContext.Accounts
+            .Where(a => a.OwnerId == ownerId && a.IsFrozen) // Оптимизация: обновляем только замороженные
+            .ExecuteUpdateAsync(updates => updates.SetProperty(account => account.IsFrozen, false), cancellationToken);
+    }
+
     public async Task<PagedResult<Account>> GetPagedAccountsAsync(
         GetAccountsQuery filters,
         CancellationToken cancellationToken)

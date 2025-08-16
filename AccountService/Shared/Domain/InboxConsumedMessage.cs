@@ -15,7 +15,7 @@ public class InboxConsumedMessage
     /// Соответствует полю "message_id" из задания.
     /// </summary>
     [Key]
-    public Guid Id { get; set; }
+    public Guid MessageId { get; set; }
 
     /// <summary>
     /// Время, когда сообщение было успешно обработано.

@@ -1,5 +1,3 @@
-
-
 using System.Diagnostics.CodeAnalysis;
 
 namespace AccountService.Features.Accounts;
@@ -7,7 +5,7 @@ namespace AccountService.Features.Accounts;
 /// <summary>
 /// Объект для передачи данных о счёте клиенту (DTO - Data Transfer Object).
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedMember.Global")] 
+[SuppressMessage("ReSharper", "UnusedMember.Global")]
 // Resharper жалуется на "неиспользуемые" поля, т.к. Dto заполняется через AutoMapper, 
 //то в коде они напрямую не используются
 public class AccountDto
@@ -53,10 +51,18 @@ public class AccountDto
     /// </summary>
     /// <example>2024-05-20T10:30:00Z</example>
     public DateTime OpenedDate { get; init; }
-    
+
     /// <summary>
     /// Дата и время закрытия счёта (в формате UTC). Будет null, если счёт активен.
     /// </summary>
     /// <example>null</example>
     public DateTime? CloseDate { get; init; }
+
+    /// <summary>
+    /// Флаг, указывающий, что счет заморожен.
+    /// Расходные операции по такому счету запрещены.
+    /// </summary>
+    // ReSharper disable once PropertyCanBeMadeInitOnly.Global  Resharper жалуется на "неиспользуемый" set, т.к. Dto заполняется через AutoMapper,
+    // то в коде они напрямую не используются
+    public bool IsFrozen { get; set; } = false; // По умолчанию счет не заморожен
 }

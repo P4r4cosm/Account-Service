@@ -30,5 +30,8 @@ public interface IAccountRepository
     
     Task<IEnumerable<Guid>> GetPagedAccountIdsForAccrueInterestAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
     
+    Task<int> FreezeAccountsByOwnerAsync(Guid ownerId, CancellationToken cancellationToken);
+    
+    Task<int> UnfreezeAccountsByOwnerAsync(Guid ownerId, CancellationToken cancellationToken);
 
 }

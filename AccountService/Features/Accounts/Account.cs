@@ -24,4 +24,11 @@ public class Account
     /// Коллекция всех транзакций, проведённых по этому счёту.
     /// </summary>
     public ICollection<Transaction> Transactions { get; init; } = new List<Transaction>();
+    
+    /// <summary>
+    /// Флаг, указывающий, что счет заморожен.
+    /// Расходные операции по такому счету запрещены.
+    /// </summary>
+    //ReSharper disable once PropertyCanBeMadeInitOnly.Global  Resharper считает, что set не нужен, он необходим для EF core.
+    public bool IsFrozen { get; set; } = false; // По умолчанию счет не заморожен
 }
