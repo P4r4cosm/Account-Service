@@ -2,15 +2,15 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace AccountService.Shared.Events;
-
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
-public class AccountOpenedEvent
+public class AccountOwnerChangedEvent
 {
-    [JsonPropertyName("accountId")] public Guid AccountId { get; set; }
+    [JsonPropertyName("accountId")]
+    public Guid AccountId { get; set; }
 
-    [JsonPropertyName("ownerId")] public Guid OwnerId { get; set; }
+    [JsonPropertyName("oldOwnerId")]
+    public Guid OldOwnerId { get; set; }
 
-    [JsonPropertyName("currency")] public required string Currency { get; set; }
-
-    [JsonPropertyName("type")] public required string Type { get; set; }
+    [JsonPropertyName("newOwnerId")]
+    public Guid NewOwnerId { get; set; }
 }

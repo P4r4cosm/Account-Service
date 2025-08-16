@@ -16,6 +16,12 @@ public class UpdateAccountCommand : IRequest<MbResult>
 {
 
     /// <summary>
+    /// ID комманды
+    /// </summary>
+    [JsonIgnore]
+    public Guid CommandId { get; set; }
+    
+    /// <summary>
     /// ID счёта, который необходимо обновить.
     /// </summary>
     /// <remarks>
@@ -56,4 +62,12 @@ public class UpdateAccountCommand : IRequest<MbResult>
     /// </remarks>
     /// <example>2025-12-31T10:00:00Z</example>
     public DateTime? CloseDate { get; set; }
+    
+    /// <summary>
+    /// Необязательный идентификатор корреляции для сквозной трассировки.
+    /// Если не предоставлен клиентом, будет сгенерирован автоматически.
+    /// Это свойство не биндится из тела запроса, а устанавливается в контроллере.
+    /// </summary>
+    [JsonIgnore]
+    public Guid? CorrelationId { get; set; }
 }

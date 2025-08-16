@@ -73,8 +73,14 @@ public class RabbitMqMessagePublisher(
             nameof(AccountOpenedEvent) => "account.opened",
             nameof(MoneyCreditedEvent) => "money.credited",
             nameof(MoneyDebitedEvent) => "money.debited",
+            // для AccountOwnerChangedEvent и AccountInterestRateChangedEvent пришлось использовать неправильное написание,
+            // чтобы попасть в account.crm (routing key: account.*)
+            nameof(AccountOwnerChangedEvent) => "account.ownerChanged", 
+            nameof(AccountInterestRateChangedEvent) => "account.rateChanged",
+            nameof(AccountReopenedEvent) => "account.reopened", 
             nameof(TransferCompletedEvent) => "money.transfer.completed",
             nameof(InterestAccruedEvent) => "money.interest.accrued",
+            nameof(AccountClosedEvent) => "account.closed",
             _ => "unknown"
         };
     }

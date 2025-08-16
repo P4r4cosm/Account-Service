@@ -1,11 +1,16 @@
+using System.Text.Json;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Events;
+using AccountService.Shared.Providers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace AccountService.Features.Accounts.DeleteAccount;
 
 public class DeleteAccountHandler(IAccountRepository accountRepository, IUnitOfWork unitOfWork,
+    IOutboxMessageRepository outboxMessageRepository,
+    ICorrelationIdProvider correlationIdProvider,
     ILogger<DeleteAccountHandler> logger) : IRequestHandler<DeleteAccountCommand, MbResult>
 {
     public async Task<MbResult> Handle(DeleteAccountCommand request, CancellationToken cancellationToken)
@@ -17,10 +22,29 @@ public class DeleteAccountHandler(IAccountRepository accountRepository, IUnitOfW
                 MbError.Custom("Account.NotFound", $"Счёт {request.AccountId} не найден."));
         }
         await accountRepository.DeleteAsync(account,cancellationToken);
+
+        var accountClosedEvent = new AccountClosedEvent
+        {
+            AccountId = account.Id,
+            OwnerId = account.OwnerId,
+            ClosedAt = DateTime.UtcNow
+        };
+        var correlationId = correlationIdProvider.GetCorrelationId();
+        var causationId = request.CommandId;
+        var eventEnvelope = new EventEnvelope<AccountClosedEvent>(accountClosedEvent, correlationId, causationId);
+        var outboxMessage = new OutboxMessage
+        {
+            Id = eventEnvelope.EventId,
+            Type = nameof(AccountClosedEvent), // Безопасное получение имени типа
+            Payload = JsonSerializer.Serialize(eventEnvelope),
+            OccurredAt = eventEnvelope.OccurredAt,
+            CorrelationId = correlationId
+        };
+        outboxMessageRepository.Add(outboxMessage);
         
         try
         {
-            await unitOfWork.SaveChangesAsync(cancellationToken); // <--- Оборачиваем только эту операцию
+            await unitOfWork.SaveChangesAsync(cancellationToken); 
         }
         // Перехватываем ошибку параллельного доступа (оптимистическая блокировка)
         catch (DbUpdateConcurrencyException ex)

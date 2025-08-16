@@ -36,7 +36,7 @@ public class CreateTransferHandler(
         {
             var fromAccount = await accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
             var toAccount = await accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
-            var validationResult = await ValidateTransferAsync(request, fromAccount, toAccount);
+            var validationResult = await ValidateTransfer(request, fromAccount, toAccount);
             if (validationResult.IsFailure)
             {
                 await unitOfWork.RollbackTransactionAsync(cancellationToken);
@@ -162,7 +162,7 @@ public class CreateTransferHandler(
         toAccount.Balance += amount;
     }
 
-    private static Task<MbResult> ValidateTransferAsync(
+    private static Task<MbResult> ValidateTransfer(
         CreateTransferCommand request,
         Account? fromAccount,
         Account? toAccount)

@@ -3,6 +3,7 @@ using AccountService.Features.Accounts.PatchAccount;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Providers;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -23,11 +24,14 @@ public class PatchAccountHandlerTests
         _clientVerificationServiceMock = new Mock<IClientVerificationService>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         var loggerMock = new Mock<ILogger<PatchAccountHandler>>();
-
+        var outboxMessageRepository = new Mock<IOutboxMessageRepository>();
+        var correlationIdProviderMock = new Mock<ICorrelationIdProvider>();
         _handler = new PatchAccountHandler(
             _accountRepositoryMock.Object,
             _clientVerificationServiceMock.Object,
             _unitOfWorkMock.Object,
+            outboxMessageRepository.Object,
+            correlationIdProviderMock.Object,
             loggerMock.Object);
     }
     
