@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using AccountService.Infrastructure.Persistence.Interfaces;
@@ -18,6 +19,7 @@ public class RabbitMqMessagePublisher(
 
     public async Task PublishAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
@@ -54,15 +56,18 @@ public class RabbitMqMessagePublisher(
                 basicProperties: properties,
                 body: body,
                 cancellationToken: cancellationToken);
+            
+            stopwatch.Stop();
 
             logger.LogInformation(
-                "Сообщение {MessageId} типа {MessageType} успешно опубликовано с ключом маршрутизации {RoutingKey}",
-                message.Id, message.Type, routingKey);
+                "Сообщение успешно опубликовано. Ключ: {RoutingKey}, Задержка: {LatencyMs}ms.",
+                routingKey, stopwatch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Ошибка при публикации сообщения {MessageId} из Outbox.", message.Id);
-            throw; // Повторная отправка будет обработана фоновым сервисом
+            stopwatch.Stop();
+            logger.LogError(ex, "Сбой при публикации в RabbitMQ. Задержка: {LatencyMs}ms.", stopwatch.ElapsedMilliseconds);
+            throw; 
         }
     }
 

@@ -19,6 +19,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
+using Serilog;
+using Serilog.Events;
 
 
 namespace AccountService;
@@ -27,19 +29,47 @@ public class Program
 {
     private static async Task Main(string[] args)
     {
-        var builder = WebApplication.CreateBuilder(args);
+        
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .CreateBootstrapLogger();
+        
+        try
+        {
+            Log.Information("Starting web application");
 
-        await ConfigureServices(builder);
+            var builder = WebApplication.CreateBuilder(args);
 
-        var app = builder.Build();
+            await ConfigureServices(builder);
 
-        await ConfigureMiddlewareAsync(app);
+            var app = builder.Build();
 
-        await app.RunAsync();
+            await ConfigureMiddlewareAsync(app);
+
+            await app.RunAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Application terminated unexpectedly");
+        }
+        finally
+        {
+            await Log.CloseAndFlushAsync(); // Очень важно! Гарантирует, что все логи будут записаны перед выходом.
+        }
     }
 
     private static async Task ConfigureServices(WebApplicationBuilder builder)
     {
+
+        builder.Host.UseSerilog((context, services, configuration) => configuration
+                .ReadFrom.Configuration(context.Configuration) // Читаем конфигурацию из appsettings.json
+                .ReadFrom.Services(services) // Позволяет внедрять зависимости в компоненты Serilog
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("Application", "AccountService") // Добавляем статическое поле ко всем логам
+        );
+        
         // Регистрируем IHttpContextAccessor, чтобы иметь доступ к HttpContext из сервисов
         builder.Services.AddHttpContextAccessor();
 
@@ -162,6 +192,8 @@ public class Program
 
     private static async Task ConfigureMiddlewareAsync(WebApplication app)
     {
+        app.UseSerilogRequestLogging(); 
+        
         // DB migrations
         await app.MigrateDatabaseAsync<ApplicationDbContext>();
 

@@ -1,5 +1,7 @@
+using System.Text.Json;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Events;
 using Hangfire;
 
 namespace AccountService.Infrastructure.Persistence.HangfireServices;
@@ -29,23 +31,38 @@ public class OutboxProcessorJob(
 
         foreach (var message in messages)
         {
+            var eventId = "N/A";
             try
             {
-                await publisher.PublishAsync(message, token);
-                message.ProcessedAt = DateTime.UtcNow;
-                outboxRepository.Update(message);
+                var envelope = JsonSerializer.Deserialize<EventEnvelope<object>>(message.Payload);
+                eventId = envelope?.EventId.ToString() ?? "N/A";
             }
-            catch (Exception ex)
-            {
-                // Hangfire имеет свою собственную логику повторов. 
-                // Здесь мы просто логируем ошибку. Если задача завершится с исключением,
-                // Hangfire попробует выполнить ее снова позже.
-                logger.LogError(ex,
-                    "Не удалось обработать сообщение {MessageId} из Outbox. Задача будет повторена Hangfire.",
-                    message.Id);
+            catch (JsonException) { /* Игнорируем, если payload невалидный */ }
 
-                // Перебрасываем исключение, чтобы Hangfire зафиксировал сбой и запланировал повтор
-                throw;
+            // Создаем контекст логирования для ОДНОГО сообщения
+            using (logger.BeginScope(new Dictionary<string, object>
+                   {
+                       ["EventId"] = eventId,
+                       ["CorrelationId"] = message.CorrelationId,
+                       ["MessageType"] = message.Type,
+                       ["OutboxMessageId"] = message.Id
+                   }))
+            {
+                try
+                {
+                    logger.LogInformation("Начинается публикация сообщения из Outbox.");
+                    
+                    // Вызываем publisher, который теперь будет писать логи в нашем контексте
+                    await publisher.PublishAsync(message, token);
+
+                    message.ProcessedAt = DateTime.UtcNow;
+                    outboxRepository.Update(message);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Ошибка публикации сообщения. Hangfire выполнит повтор.");
+                    throw;
+                }
             }
         }
 

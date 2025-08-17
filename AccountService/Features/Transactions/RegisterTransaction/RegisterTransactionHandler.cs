@@ -34,7 +34,10 @@ public class RegisterTransactionHandler(
             if (account.CloseDate.HasValue)
                 return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Validation",
                     "Операции по закрытому счёту невозможны."));
-
+            if (account.IsFrozen && Enum.Parse<TransactionType>(request.Type)==TransactionType.Debit)
+                return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Validation",
+                    $"Счёт {request.AccountId} заморожен, операции снятия средств невозможны."));
+            
             // Создаем новую сущность транзакции
             var newTransaction = mapper.Map<Transaction>(request);
             newTransaction.Id = Guid.NewGuid();

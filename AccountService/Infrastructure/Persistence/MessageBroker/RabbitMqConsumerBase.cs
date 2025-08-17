@@ -50,38 +50,38 @@ public abstract class RabbitMqConsumerBase : BackgroundService
                     // 3. Логируем каждую попытку, используя контекст
                     var eventId = context.Contains("EventId") ? context["EventId"] : "N/A";
                     _logger.LogWarning(exception,
-                        "[EventId: {EventId}] Retry {RetryCount} of {MaxRetries}. Delaying for {Delay}ms. Reason: {ExceptionMessage}",
+                        "[EventId: {EventId}] Попытка #{RetryCount} из {MaxRetries}. Повтор через {Delay:F0} мс. Причина: {ExceptionMessage}",
                         eventId, retryCount, 3, timespan.TotalMilliseconds, exception.Message);
                 });
     }
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("{HandlerName} is starting.", HandlerName);
-        cancellationToken.Register(() => _logger.LogInformation("{HandlerName} is stopping.", HandlerName));
+        _logger.LogInformation("{HandlerName} запускается.", HandlerName);
+        cancellationToken.Register(() => _logger.LogInformation("{HandlerName} останавливается.", HandlerName));
 
         try
         {
             _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
             await _channel.BasicQosAsync(0, 1, false, cancellationToken);
-            _logger.LogInformation("{HandlerName} channel created, QoS set to 1.", HandlerName);
-
+            _logger.LogInformation("{HandlerName}: канал создан, QoS (prefetch) установлен в 1.", HandlerName);
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.ReceivedAsync += OnMessageReceived;
 
             await _channel.BasicConsumeAsync(QueueName, autoAck: false, consumer, cancellationToken);
-            _logger.LogInformation("{HandlerName} started consuming from queue '{QueueName}'.", HandlerName, QueueName);
+            _logger.LogInformation("{HandlerName}: начато прослушивание очереди '{QueueName}'.", HandlerName,
+                QueueName);
+
 
             await Task.Delay(Timeout.Infinite, cancellationToken);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("{HandlerName} execution was cancelled.", HandlerName);
+            _logger.LogInformation("{HandlerName}: выполнение было отменено.", HandlerName);
         }
         catch (Exception ex)
         {
-            _logger.LogCritical(ex, "A critical error occurred in {HandlerName}. The consumer will shut down.",
-                HandlerName);
+            _logger.LogCritical(ex, "Критическая ошибка в {HandlerName}. Потребитель будет остановлен.", HandlerName);
         }
         finally
         {
@@ -92,7 +92,7 @@ public abstract class RabbitMqConsumerBase : BackgroundService
                     cancellationToken); // Используем Close без токена в finally, т.к. токен уже может быть отменен
             }
 
-            _logger.LogInformation("{HandlerName} has shut down.", HandlerName);
+            _logger.LogInformation("{HandlerName} завершил работу.", HandlerName);
         }
     }
 
@@ -110,9 +110,10 @@ public abstract class RabbitMqConsumerBase : BackgroundService
             if (genericEnvelope is null || (eventId = genericEnvelope.EventId) == Guid.Empty)
             {
                 _logger.LogWarning(
-                    "Message received with invalid envelope or empty eventId. Moving to dead-letter. Body: {MessageBody}",
+                    "Получено сообщение с невалидной оболочкой или пустым eventId. Перемещение в карантин. Тело: {MessageBody}",
                     messageBody);
-                await HandleDeadLetterAsync(null, "Invalid envelope or empty eventId", Guid.NewGuid(), messageBody);
+                await HandleDeadLetterAsync(null, "Невалидная оболочка или пустой eventId", Guid.NewGuid(),
+                    messageBody);
                 await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
                 return;
             }
@@ -120,12 +121,13 @@ public abstract class RabbitMqConsumerBase : BackgroundService
         catch (JsonException jsonEx)
         {
             _logger.LogWarning(jsonEx,
-                "Failed to deserialize message body (invalid JSON). Moving to dead-letter. Body: {MessageBody}",
+                "Ошибка десериализации тела сообщения (невалидный JSON). Перемещение в карантин. Тело: {MessageBody}",
                 messageBody);
-            await HandleDeadLetterAsync(null, "Invalid JSON format", Guid.NewGuid(), messageBody);
+            await HandleDeadLetterAsync(null, "Невалидный формат JSON", Guid.NewGuid(), messageBody);
             await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
             return;
         }
+
         // Добавляем чтение CausationId из кастомных заголовков
         var causationId = Guid.Empty;
         if (eventArgs.BasicProperties.Headers?.TryGetValue("X-Causation-Id", out var causationIdObj) == true &&
@@ -136,9 +138,11 @@ public abstract class RabbitMqConsumerBase : BackgroundService
 
         if (!Guid.TryParse(eventArgs.BasicProperties.CorrelationId, out var correlationId))
         {
-            _logger.LogWarning("CorrelationId is missing or invalid: '{CorrelationId}'", eventArgs.BasicProperties.CorrelationId);
-            correlationId = Guid.Empty; // или сгенерировать новый, если нужно
+            _logger.LogWarning("CorrelationId отсутствует или имеет неверный формат: '{CorrelationId}'",
+                eventArgs.BasicProperties.CorrelationId);
+            correlationId = Guid.NewGuid();
         }
+
         // Шаг 2: Настройка контекста для структурированного логирования
         using (_logger.BeginScope(new Dictionary<string, object>
                {
@@ -151,18 +155,34 @@ public abstract class RabbitMqConsumerBase : BackgroundService
             // Шаг 3: Валидация метаданных
             if (genericEnvelope.Meta.Version != "v1")
             {
-                var error = $"Unsupported version: '{genericEnvelope.Meta.Version}'";
-                _logger.LogWarning("{Error}. Moving to dead-letter.", error);
+                var error = $"Неподдерживаемая версия: '{genericEnvelope.Meta.Version}'";
+                _logger.LogWarning("{Error}. Перемещение в карантин.", error);
                 await HandleDeadLetterAsync(null, error, eventId, messageBody);
                 await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
                 return;
             }
 
-            _logger.LogInformation("Processing message.");
+            try
+            {
+                using var initialScope = _serviceProvider.CreateScope();
+                var inboxRepository = initialScope.ServiceProvider.GetRequiredService<IInboxRepository>();
+                if (await inboxRepository.IsHandledAsync(eventId, HandlerName, CancellationToken.None))
+                {
+                    _logger.LogInformation("Сообщение уже было обработано. Пропуск выполнения.");
+                    await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
+                    return; // Полный выход
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Ошибка при предварительной проверке идемпотентности. Сообщение будет обработано с retry.");
+            }
+
+            _logger.LogInformation("Начата обработка сообщения.");
 
             try
             {
-                // Шаг 4: Выполнение основной логики с применением политики Retry
                 var policyContext = new Context($"Event-{eventId}",
                     new Dictionary<string, object> { { "EventId", eventId } });
 
@@ -172,29 +192,20 @@ public abstract class RabbitMqConsumerBase : BackgroundService
                     var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                     var inboxRepository = scope.ServiceProvider.GetRequiredService<IInboxRepository>();
 
-                    // 1. Оптимистичная проверка, чтобы избежать лишних транзакций
-                    if (await inboxRepository.IsHandledAsync(eventId, HandlerName, CancellationToken.None))
-                    {
-                        _logger.LogInformation("Message already handled. Skipping execution inside retry policy.");
-                        await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
-                        return; // Выходим из политики, т.к. обработка не нужна
-                    }
-
                     await unitOfWork.BeginTransactionAsync(IsolationLevel.ReadCommitted);
 
-                    // 2. Пессимистичная проверка внутри транзакции для гарантии от гонок (race condition)
+                    // Пессимистичная проверка внутри транзакции
                     if (await inboxRepository.IsHandledAsync(eventId, HandlerName, CancellationToken.None))
                     {
                         await unitOfWork.RollbackTransactionAsync();
-                        await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
-                        _logger.LogInformation("Message already handled. Skipping execution inside retry policy.");
-                        return;
+                        // Было: "Message already handled..."
+                        _logger.LogInformation(
+                            "Сообщение уже было обработано (проверено в транзакции). Пропуск выполнения.");
+                        return; // Выходим только из лямбды ExecuteAsync
                     }
 
-                    // Вызов бизнес-логики
                     await ProcessMessageAsync(scope, eventArgs.RoutingKey, messageBody);
 
-                    // Сохранение в Inbox для идемпотентности
                     inboxRepository.Add(new InboxConsumedMessage
                     {
                         MessageId = eventId,
@@ -207,19 +218,21 @@ public abstract class RabbitMqConsumerBase : BackgroundService
                 }, policyContext);
 
                 stopwatch.Stop();
-                _logger.LogInformation("Successfully processed message. Latency: {LatencyMs}ms.",
+                // Было: "Successfully processed message. Latency: {LatencyMs}ms."
+                _logger.LogInformation("Сообщение успешно обработано. Задержка: {LatencyMs} мс.",
                     stopwatch.ElapsedMilliseconds);
                 await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
             }
             catch (Exception ex)
             {
-                // Этот блок сработает ТОЛЬКО ЕСЛИ все попытки Polly провалились
                 stopwatch.Stop();
+                // Было: "Failed to process message after all retries. Moving to DLX/NACKing. Latency: {LatencyMs}ms."
                 _logger.LogError(ex,
-                    "Failed to process message after all retries. Moving to DLX/NACKing. Latency: {LatencyMs}ms.",
+                    "Не удалось обработать сообщение после всех попыток. Перемещение в карантин. Задержка: {LatencyMs} мс.",
                     stopwatch.ElapsedMilliseconds);
-                // Сохраняем "отравленное" сообщение в нашу таблицу карантина
-                await HandleDeadLetterAsync(null, $"Failed after all retries: {ex.Message}", eventId, messageBody);
+
+                await HandleDeadLetterAsync(null, $"Не удалось обработать после всех попыток: {ex.Message}", eventId,
+                    messageBody);
                 await NegativeAcknowledgeMessageAsync(eventArgs.DeliveryTag);
             }
         }
@@ -258,7 +271,9 @@ public abstract class RabbitMqConsumerBase : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogCritical(ex, "[EventId: {EventId}] Failed to write to dead-letter table!", messageId);
+            _logger.LogCritical(ex,
+                "[EventId: {EventId}] Критическая ошибка при записи в таблицу карантина (inbox_dead_letters)!",
+                messageId);
         }
     }
 

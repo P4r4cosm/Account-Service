@@ -25,13 +25,7 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
     {
         await dbContext.Accounts.AddAsync(account, cancellationToken);
     }
-
-
-    /// <summary>
-    /// Устанавливает CloseDate значение, равное времени в которое выполнялась операция 
-    /// </summary>
-    /// <param name="account"></param>
-    /// <param name="cancellationToken"></param>
+    
     public Task DeleteAsync(Account account, CancellationToken cancellationToken)
     {
         account.CloseDate = DateTime.UtcNow;
@@ -149,6 +143,8 @@ public class PostgresAccountRepository(ApplicationDbContext dbContext) : IAccoun
 
         // 4. Затем применяем пагинацию.
         var pagedItems = await query
+            .OrderBy(a=>a.OpenedDate)
+            .ThenBy(a => a.Id)
             .Skip((filters.PageNumber - 1) * filters.PageSize)
             .Take(filters.PageSize)
             .ToListAsync(cancellationToken);
