@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using AccountService.Infrastructure.Persistence;
 using AccountService.Infrastructure.Persistence.HangfireServices;
+using AccountService.Infrastructure.Persistence.HealthChecks;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Infrastructure.Persistence.MessageBroker;
 using AccountService.Infrastructure.Persistence.Repositories;
@@ -29,13 +30,12 @@ public class Program
 {
     private static async Task Main(string[] args)
     {
-        
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
             .Enrich.FromLogContext()
             .WriteTo.Console()
             .CreateBootstrapLogger();
-        
+
         try
         {
             Log.Information("Starting web application");
@@ -62,14 +62,13 @@ public class Program
 
     private static async Task ConfigureServices(WebApplicationBuilder builder)
     {
-
         builder.Host.UseSerilog((context, services, configuration) => configuration
                 .ReadFrom.Configuration(context.Configuration) // Читаем конфигурацию из appsettings.json
                 .ReadFrom.Services(services) // Позволяет внедрять зависимости в компоненты Serilog
                 .Enrich.FromLogContext()
                 .Enrich.WithProperty("Application", "AccountService") // Добавляем статическое поле ко всем логам
         );
-        
+
         // Регистрируем IHttpContextAccessor, чтобы иметь доступ к HttpContext из сервисов
         builder.Services.AddHttpContextAccessor();
 
@@ -100,7 +99,7 @@ public class Program
 
         builder.Services.AddHostedService<RabbitMqInitializer>();
         builder.Services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
-        
+
         // Controllers + JSON
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
@@ -117,9 +116,9 @@ public class Program
         builder.Services.AddScoped<IInterestAccrualService, InterestAccrualService>();
         builder.Services.AddScoped<IInterestAccrualOrchestrator, InterestAccrualOrchestrator>();
 
-        
+
         builder.Services.AddScoped<OutboxProcessorJob>(); // Регистрируем нашу задачу как Scoped
-        
+
         // PostgreSQL
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -130,15 +129,29 @@ public class Program
         builder.Services.AddScoped<IOutboxMessageRepository, PostgresOutboxMessageRepository>();
         builder.Services.AddScoped<IInboxRepository, PostgresInboxRepository>();
         builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
-        
+
         // Регистрация консьюмера как фонового сервиса (Hosted Service)
         builder.Services.AddHostedService<AntifraudConsumer>();
+
+        // Регистрируем кастомную проверку в DI-контейнере
+        builder.Services.AddScoped<OutboxHealthCheck>();
+
+
+        builder.Services.AddAllHealthChecks(builder.Configuration);
+
+        builder.Services.AddHealthChecksUI(options =>
+            {
+                options.AddHealthCheckEndpoint("Сервис Счетов (Account Service)", "/health/ready");
+                options.SetEvaluationTimeInSeconds(10);
+            })
+            .AddInMemoryStorage();
 
         // CORS
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("AllowAll", policy => { policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); });
         });
+
 
         // 1. Настройка HangFire
         builder.Services.AddHangfire(configuration => configuration
@@ -192,8 +205,8 @@ public class Program
 
     private static async Task ConfigureMiddlewareAsync(WebApplication app)
     {
-        app.UseSerilogRequestLogging(); 
-        
+        app.UseSerilogRequestLogging();
+
         // DB migrations
         await app.MigrateDatabaseAsync<ApplicationDbContext>();
 
@@ -223,6 +236,11 @@ public class Program
         {
             Authorization = [new HangfireAuthorizationFilter()]
         });
+
+        app.MapHealthChecksUI(options =>
+        {
+            options.UIPath = "/health-ui"; // Путь к дашборду
+        });
         // Controllers
         app.MapControllers();
         // app.MapControllers().RequireAuthorization(); 
@@ -232,7 +250,7 @@ public class Program
             orchestrator => orchestrator.StartAccrualProcess(),
             Cron.Daily,
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
-        
+
         RecurringJob.AddOrUpdate<OutboxProcessorJob>(
             "process-outbox-messages", // Уникальный идентификатор задачи
             job => job.ProcessOutboxMessagesAsync(JobCancellationToken.Null), // Метод, который нужно вызывать

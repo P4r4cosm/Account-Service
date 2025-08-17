@@ -24,4 +24,10 @@ public class PostgresOutboxMessageRepository(ApplicationDbContext context) : IOu
             .Take(20) // Ограничиваем выборку для производительности
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<int> GetUnprocessedMessagesCountAsync(CancellationToken cancellationToken)
+    {
+        return await context.OutboxMessages
+            .CountAsync(m => m.ProcessedAt == null, cancellationToken);
+    }
 }
