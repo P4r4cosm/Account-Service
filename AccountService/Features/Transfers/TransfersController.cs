@@ -10,6 +10,7 @@ namespace AccountService.Features.Transfers;
 [Authorize]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[ApiExplorerSettings(GroupName = "v1")] // Группируем в отдельный раздел Swagger
 public class TransfersController(IMediator mediator) : BaseApiController(mediator)
 {
     /// <summary>

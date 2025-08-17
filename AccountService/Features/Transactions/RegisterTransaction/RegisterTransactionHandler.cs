@@ -35,7 +35,7 @@ public class RegisterTransactionHandler(
                 return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Validation",
                     "Операции по закрытому счёту невозможны."));
             if (account.IsFrozen && Enum.Parse<TransactionType>(request.Type)==TransactionType.Debit)
-                return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Validation",
+                return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Conflict",
                     $"Счёт {request.AccountId} заморожен, операции снятия средств невозможны."));
             
             // Создаем новую сущность транзакции

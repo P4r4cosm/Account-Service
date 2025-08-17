@@ -180,7 +180,7 @@ public class CreateTransferHandler(
         }
         if (fromAccount.IsFrozen)
         {
-            return Task.FromResult(MbResult.Failure(MbError.Custom("Account.Validation",
+            return Task.FromResult(MbResult.Failure(MbError.Custom("Account.Conflict",
                 $"Счёт списания {fromAccount.Id} заморожен, операции снятия средств невозможны.")));
         }
 

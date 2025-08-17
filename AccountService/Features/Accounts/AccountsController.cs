@@ -20,6 +20,7 @@ namespace AccountService.Features.Accounts;
 [Authorize]
 [Produces("application/json")]
 [Route("api/[controller]")]
+[ApiExplorerSettings(GroupName = "v1")] // Группируем в отдельный раздел Swagger
 public class AccountsController(IMediator mediator) : BaseApiController(mediator)
 {
     // --- CREATE ---

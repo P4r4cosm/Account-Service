@@ -15,6 +15,7 @@ namespace AccountService.Features.Transactions;
 [Authorize]
 [Route("api/accounts/{accountId:guid}/transactions")]
 [Produces("application/json")]
+[ApiExplorerSettings(GroupName = "v1")] // Группируем в отдельный раздел Swagger
 public class TransactionsController(IMediator mediator) : BaseApiController(mediator) // Наследуемся от BaseApiController
 {
     /// <summary>

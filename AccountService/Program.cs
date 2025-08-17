@@ -210,6 +210,7 @@ public class Program
             {
                 options.RoutePrefix = "swagger";
                 options.SwaggerEndpoint("/swagger/v1/swagger.json", "Account Service API V1");
+                options.SwaggerEndpoint("/swagger/events-v1/swagger.json", "События v1");
                 options.OAuthClientId(app.Configuration["Swagger:ClientId"]);
             });
         }

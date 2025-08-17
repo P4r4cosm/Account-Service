@@ -18,6 +18,13 @@ public static class ServiceCollectionExtensions
                 Description =
                     "Микросервис для управления банковскими счетами и транзакциями в соответствии с заданием Модуль Банка."
             });
+            // Определяем отдельный документ для Событий
+            options.SwaggerDoc("events-v1", new OpenApiInfo
+            {
+                Title = "События (Events)",
+                Version = "v1",
+                Description = "Асинхронные контракты (события), которыми сервис обменивается через брокер сообщений."
+            });
             options.EnableAnnotations();
             // Включаем отображение комментариев в интерфейсе Swagger
             var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";

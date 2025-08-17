@@ -3,7 +3,8 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace AccountService.Shared.Domain;
 
-[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")] // Resharper жалуется на set, они нужны для EF core
+[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // Resharper жалуется на set, они нужны для EF core
 public class InboxDeadLetterMessage
 {
    
@@ -30,12 +31,14 @@ public class InboxDeadLetterMessage
     /// Полное тело (payload) полученного сообщения в виде строки.
     /// </summary>
     [Required]
+    [MaxLength(5000)]
     public required string Payload { get; set; }
 
     /// <summary>
     /// Причина, по которой сообщение попало в карантин (например, "Unsupported version").
     /// </summary>
     [Required]
+    [MaxLength(1000)]
     public required string Error { get; set; }
     
 }
