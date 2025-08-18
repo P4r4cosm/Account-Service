@@ -7,7 +7,7 @@ namespace AccountService.Shared.Events;
 /// Событие, публикуемое после успешного начисления процентов на остаток по вкладу.
 /// Routing Key: `money.interest.accrued`
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
 public class InterestAccruedEvent
 {
     /// <summary>

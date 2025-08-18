@@ -7,7 +7,7 @@ namespace AccountService.Shared.Events;
 /// Событие, публикуемое при смене владельца счёта.
 /// Routing Key: `account.ownerChanged`
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
 public class AccountOwnerChangedEvent
 {
     /// <summary>

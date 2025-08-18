@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using IContainer = DotNet.Testcontainers.Containers.IContainer;
 using Program = AccountService.Program;
 
-namespace AccountServiceTests.ParallelTransferTests;
+namespace AccountServiceTests.IntegrationTests.ParallelTransferTests;
 
 // ReSharper disable once ClassNeverInstantiated.Global Resharper считает, что нужно сделать класс абстрактным, но нужен создаваемый объект для ParallelTransferTests
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime

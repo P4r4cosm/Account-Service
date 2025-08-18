@@ -7,7 +7,7 @@ namespace AccountService.Shared.Events;
 /// Событие, публикуемое при успешном списании денежных средств со счёта.
 /// Routing Key: `money.debited`
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
 public class MoneyDebitedEvent
 {
     /// <summary>

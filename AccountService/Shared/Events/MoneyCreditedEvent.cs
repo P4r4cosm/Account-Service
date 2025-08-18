@@ -8,7 +8,7 @@ namespace AccountService.Shared.Events;
 /// Предназначено для сервиса уведомлений и других систем.
 /// Routing Key: `money.credited`
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
 public class MoneyCreditedEvent
 {
     /// <summary>

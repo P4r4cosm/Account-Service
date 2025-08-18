@@ -8,7 +8,7 @@ namespace AccountService.Shared.Events;
 /// Предназначено для информирования других систем, например, CRM.
 /// Routing Key: `account.opened`
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
 public class AccountOpenedEvent
 {
     /// <summary>
@@ -19,7 +19,7 @@ public class AccountOpenedEvent
     /// <summary>
     /// Уникальный идентификатор клиента-владельца счёта.
     /// </summary>
-    [JsonPropertyName("ownerId")] public Guid OwnerId { get; set; }
+    [JsonPropertyName("ownerId")] public Guid OwnerId { get; init; }
 
     /// <summary>
     /// Код валюты счёта в формате ISO 4217.

@@ -7,7 +7,7 @@ namespace AccountService.Shared.Events;
 /// сигнализирующее о необходимости снять блокировку расходных операций для клиента.
 /// Routing Key: `client.unblocked`
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] 
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]  // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
 // ReSharper disable once ClassNeverInstantiated.Global 
 public class ClientUnblockedEvent
 {

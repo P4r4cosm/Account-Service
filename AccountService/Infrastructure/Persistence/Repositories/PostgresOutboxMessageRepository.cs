@@ -16,12 +16,12 @@ public class PostgresOutboxMessageRepository(ApplicationDbContext context) : IOu
         context.OutboxMessages.Update(message);
     }
 
-    public async Task<List<OutboxMessage>> GetUnprocessedMessagesAsync(CancellationToken cancellationToken)
+    public async Task<List<OutboxMessage>> GetUnprocessedMessagesAsync(int batchSize, CancellationToken cancellationToken)
     {
         return await context.OutboxMessages
             .Where(m => m.ProcessedAt == null)
             .OrderBy(m => m.OccurredAt)
-            .Take(20) // Ограничиваем выборку для производительности
+            .Take(batchSize) // Ограничиваем выборку для производительности
             .ToListAsync(cancellationToken);
     }
 

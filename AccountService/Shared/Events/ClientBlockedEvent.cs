@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace AccountService.Shared.Events;
@@ -8,13 +7,11 @@ namespace AccountService.Shared.Events;
 /// сигнализирующее о необходимости заблокировать все расходные операции для клиента.
 /// Routing Key: `client.blocked`
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] 
-// ReSharper disable once ClassNeverInstantiated.Global 
 public class ClientBlockedEvent
 {
     /// <summary>
     /// Уникальный идентификатор клиента, чьи счета необходимо заблокировать.
     /// </summary>
     [JsonPropertyName("clientId")]
-    public Guid ClientId { get; set; }
+    public Guid ClientId { get; init; }
 }

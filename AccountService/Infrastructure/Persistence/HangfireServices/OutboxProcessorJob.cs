@@ -13,13 +13,15 @@ public class OutboxProcessorJob(
     ILogger<OutboxProcessorJob> logger)
 {
     // Внедряем зависимости напрямую через конструктор
+    
+    private const int BatchSize = 20;
 
     // Этот публичный метод будет вызываться Hangfire
     public async Task ProcessOutboxMessagesAsync(IJobCancellationToken cancellationToken)
     {
         logger.LogInformation("Запуск задачи обработки сообщений из Outbox...");
         var token = cancellationToken.ShutdownToken;
-        var messages = await outboxRepository.GetUnprocessedMessagesAsync(token);
+        var messages = await outboxRepository.GetUnprocessedMessagesAsync(BatchSize ,token);
 
         if (messages.Count == 0)
         {

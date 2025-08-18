@@ -5,8 +5,8 @@ namespace AccountService.Shared.Events;
 /// <summary>
 /// Метаданные, сопровождающие каждое событие для обеспечения наблюдаемости и корректной обработки.
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
-[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]// ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
+[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")] 
 public class EventMeta
 {
     /// <summary>

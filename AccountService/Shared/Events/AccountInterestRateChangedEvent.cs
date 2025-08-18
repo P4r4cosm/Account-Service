@@ -7,7 +7,7 @@ namespace AccountService.Shared.Events;
 /// Событие, публикуемое при изменении процентной ставки по счёту (вкладу).
 /// Routing Key: `account.rateChanged`
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper жалуется на неиспользуемый get, он нужен для десериализации
 public class AccountInterestRateChangedEvent
 {
     /// <summary>

@@ -6,10 +6,12 @@ using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
 using AccountService.Shared.Events;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Polly;
 using Polly.Retry;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 
 namespace AccountService.Infrastructure.Persistence.MessageBroker;
 
@@ -38,6 +40,7 @@ public abstract class RabbitMqConsumerBase : BackgroundService
         _retryPolicy = Policy
             // 1. Указываем, какие исключения считать временными (transient)
             .Handle<DbUpdateException>() // Например, deadlock или transient-ошибка сети с БД
+            .Or<NpgsqlException>(ex => ex.IsTransient) // Явно ловим временные ошибки PostgreSQL
             .Or<TimeoutException>() // Таймаут при обращении к внешнему ресурсу
             // 2. Настраиваем стратегию ожидания и повтора
             .WaitAndRetryAsync(
@@ -55,76 +58,80 @@ public abstract class RabbitMqConsumerBase : BackgroundService
                 });
     }
 
-    protected override async Task ExecuteAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("{HandlerName} запускается.", HandlerName);
-        cancellationToken.Register(() => _logger.LogInformation("{HandlerName} останавливается.", HandlerName));
+        stoppingToken.Register(() => _logger.LogInformation("{HandlerName} останавливается.", HandlerName));
 
-        try
+        while (!stoppingToken.IsCancellationRequested)
         {
-            _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
+            try
+            {
+                await ConnectAndConsume(stoppingToken);
+                // Если мы вышли отсюда без исключения, значит была штатная отмена
+                break;
+            }
+            catch (OperationCanceledException)
+            {
+                // Это ожидаемое исключение при остановке сервиса. Просто выходим из цикла.
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ex,
+                    "Критическая ошибка в потребителе {HandlerName}. Попытка переподключения через 5 секунд.",
+                    HandlerName);
+                // Ждем перед попыткой пересоздать соединение и потребителя
+                await Task.Delay(5000, stoppingToken);
+            }
+        }
+
+        _logger.LogInformation("{HandlerName} завершил работу.", HandlerName);
+    }
+
+    private async Task ConnectAndConsume(CancellationToken cancellationToken)
+    {
+        if (!_connection.IsOpen)
+        {
+            _logger.LogWarning("Соединение с RabbitMQ закрыто. Ожидание перед подключением...");
+            // Можно добавить политику Polly и сюда, для ожидания доступности RabbitMQ при старте
+            throw new BrokerUnreachableException(
+                new Exception("Соединение недоступно при попытке запуска потребителя."));
+        }
+
+        await using (_channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken))
+        {
             await _channel.BasicQosAsync(0, 1, false, cancellationToken);
-            _logger.LogInformation("{HandlerName}: канал создан, QoS (prefetch) установлен в 1.", HandlerName);
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.ReceivedAsync += OnMessageReceived;
+
+            // Подписываемся на событие закрытия канала, чтобы уронить весь consumer
+            _channel.CallbackExceptionAsync += (_, ea) =>
+            {
+                _logger.LogError(ea.Exception, "Произошла ошибка в канале RabbitMQ. Consumer будет перезапущен.");
+                // Отписываемся, чтобы избежать повторного вызова
+                consumer.ReceivedAsync -= OnMessageReceived;
+                return Task.CompletedTask;
+            };
 
             await _channel.BasicConsumeAsync(QueueName, autoAck: false, consumer, cancellationToken);
             _logger.LogInformation("{HandlerName}: начато прослушивание очереди '{QueueName}'.", HandlerName,
                 QueueName);
 
-
+            // Ждем отмены, пока consumer работает
             await Task.Delay(Timeout.Infinite, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("{HandlerName}: выполнение было отменено.", HandlerName);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogCritical(ex, "Критическая ошибка в {HandlerName}. Потребитель будет остановлен.", HandlerName);
-        }
-        finally
-        {
-            if (_channel is { IsClosed: true })
-            {
-                await _channel.CloseAsync(
-                    cancellationToken:
-                    cancellationToken); // Используем Close без токена в finally, т.к. токен уже может быть отменен
-            }
-
-            _logger.LogInformation("{HandlerName} завершил работу.", HandlerName);
         }
     }
 
     private async Task OnMessageReceived(object sender, BasicDeliverEventArgs eventArgs)
     {
-        var messageBody = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
         var stopwatch = Stopwatch.StartNew();
-
-        // Шаг 1: Десериализация и валидация конверта (Envelope)
-        EventEnvelope<object>? genericEnvelope;
-        Guid eventId;
-        try
+        var messageBody = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
+        
+        if (!TryValidateEnvelope(messageBody, out var eventId))
         {
-            genericEnvelope = JsonSerializer.Deserialize<EventEnvelope<object>>(messageBody);
-            if (genericEnvelope is null || (eventId = genericEnvelope.EventId) == Guid.Empty)
-            {
-                _logger.LogWarning(
-                    "Получено сообщение с невалидной оболочкой или пустым eventId. Перемещение в карантин. Тело: {MessageBody}",
-                    messageBody);
-                await HandleDeadLetterAsync(null, "Невалидная оболочка или пустой eventId", Guid.NewGuid(),
-                    messageBody);
-                await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
-                return;
-            }
-        }
-        catch (JsonException jsonEx)
-        {
-            _logger.LogWarning(jsonEx,
-                "Ошибка десериализации тела сообщения (невалидный JSON). Перемещение в карантин. Тело: {MessageBody}",
-                messageBody);
-            await HandleDeadLetterAsync(null, "Невалидный формат JSON", Guid.NewGuid(), messageBody);
-            await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
+            await HandleInvalidMessageAsync(eventArgs.DeliveryTag, messageBody, eventId,
+                "Невалидная оболочка или версия");
             return;
         }
 
@@ -143,7 +150,6 @@ public abstract class RabbitMqConsumerBase : BackgroundService
             correlationId = Guid.NewGuid();
         }
 
-        // Шаг 2: Настройка контекста для структурированного логирования
         using (_logger.BeginScope(new Dictionary<string, object>
                {
                    ["EventId"] = eventId,
@@ -152,90 +158,107 @@ public abstract class RabbitMqConsumerBase : BackgroundService
                    ["MessageType"] = eventArgs.RoutingKey
                }))
         {
-            // Шаг 3: Валидация метаданных
-            if (genericEnvelope.Meta.Version != "v1")
+            try
             {
-                var error = $"Неподдерживаемая версия: '{genericEnvelope.Meta.Version}'";
-                _logger.LogWarning("{Error}. Перемещение в карантин.", error);
-                await HandleDeadLetterAsync(null, error, eventId, messageBody);
+                if (await IsMessageAlreadyHandled(eventId))
+                {
+                    _logger.LogInformation("Сообщение уже было обработано (быстрая проверка). Пропуск.");
+                    await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
+                    return;
+                }
+
+                await ProcessMessageWithRetriesAsync(eventId, eventArgs.RoutingKey, messageBody);
+
+                stopwatch.Stop();
+                _logger.LogInformation("Сообщение успешно обработано. Затрачено: {LatencyMs} мс.",
+                    stopwatch.ElapsedMilliseconds);
                 await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex,
+                    "Не удалось обработать сообщение после всех попыток. Перемещение в карантин. Затрачено: {LatencyMs} мс.",
+                    stopwatch.ElapsedMilliseconds);
+                await HandleFinalFailureAsync(eventArgs.DeliveryTag, messageBody, eventId, ex.Message);
+            }
+        }
+    }
+
+    private async Task HandleInvalidMessageAsync(ulong deliveryTag, string payload, Guid? messageId, string error)
+    {
+        _logger.LogWarning("{Error}. Перемещение в карантин. Тело: {MessageBody}", error, payload);
+        await HandleDeadLetterAsync(null, error, messageId ?? Guid.NewGuid(), payload);
+        await AcknowledgeMessageAsync(deliveryTag);
+    }
+
+    private async Task HandleFinalFailureAsync(ulong deliveryTag, string payload, Guid messageId, string error)
+    {
+        await HandleDeadLetterAsync(null, $"Не удалось обработать после всех попыток: {error}", messageId, payload);
+        // Используем NACK, чтобы сообщить брокеру о неудаче (если настроен DLX, сообщение уйдет туда)
+        if (_channel is not null) await _channel.BasicNackAsync(deliveryTag, false, false);
+    }
+
+    private static bool TryValidateEnvelope(string payload, out Guid eventId)
+    {
+        eventId = Guid.Empty;
+        try
+        {
+            var envelope = JsonSerializer.Deserialize<EventEnvelope<object>>(payload);
+            if (envelope is null || envelope.EventId == Guid.Empty) return false;
+
+            eventId = envelope.EventId;
+            var version = envelope.Meta.Version;
+            return version == "v1"; // Проверяем версию сразу
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private async Task<bool> IsMessageAlreadyHandled(Guid eventId)
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var inbox = scope.ServiceProvider.GetRequiredService<IInboxRepository>();
+            return await inbox.IsHandledAsync(eventId, HandlerName, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при предварительной проверке идемпотентности. Обработка будет продолжена.");
+            return false;
+        }
+    }
+
+    private async Task ProcessMessageWithRetriesAsync(Guid eventId, string routingKey, string messageBody)
+    {
+        var policyContext = new Context($"Event-{eventId}", new Dictionary<string, object> { { "EventId", eventId } });
+
+        await _retryPolicy.ExecuteAsync(async _ =>
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var inboxRepository = scope.ServiceProvider.GetRequiredService<IInboxRepository>();
+
+            await unitOfWork.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+
+            if (await inboxRepository.IsHandledAsync(eventId, HandlerName, CancellationToken.None))
+            {
+                await unitOfWork.RollbackTransactionAsync();
+                _logger.LogInformation("Сообщение уже было обработано (проверено в транзакции). Пропуск.");
                 return;
             }
 
-            try
-            {
-                using var initialScope = _serviceProvider.CreateScope();
-                var inboxRepository = initialScope.ServiceProvider.GetRequiredService<IInboxRepository>();
-                if (await inboxRepository.IsHandledAsync(eventId, HandlerName, CancellationToken.None))
-                {
-                    _logger.LogInformation("Сообщение уже было обработано. Пропуск выполнения.");
-                    await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
-                    return; // Полный выход
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Ошибка при предварительной проверке идемпотентности. Сообщение будет обработано с retry.");
-            }
+            await ProcessMessageAsync(scope, routingKey, messageBody);
 
-            _logger.LogInformation("Начата обработка сообщения.");
+            inboxRepository.Add(new InboxConsumedMessage
+                { MessageId = eventId, Handler = HandlerName, ProcessedAt = DateTime.UtcNow });
 
-            try
-            {
-                var policyContext = new Context($"Event-{eventId}",
-                    new Dictionary<string, object> { { "EventId", eventId } });
-
-                await _retryPolicy.ExecuteAsync(async _ =>
-                {
-                    using var scope = _serviceProvider.CreateScope();
-                    var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var inboxRepository = scope.ServiceProvider.GetRequiredService<IInboxRepository>();
-
-                    await unitOfWork.BeginTransactionAsync(IsolationLevel.ReadCommitted);
-
-                    // Пессимистичная проверка внутри транзакции
-                    if (await inboxRepository.IsHandledAsync(eventId, HandlerName, CancellationToken.None))
-                    {
-                        await unitOfWork.RollbackTransactionAsync();
-                        // Было: "Message already handled..."
-                        _logger.LogInformation(
-                            "Сообщение уже было обработано (проверено в транзакции). Пропуск выполнения.");
-                        return; // Выходим только из лямбды ExecuteAsync
-                    }
-
-                    await ProcessMessageAsync(scope, eventArgs.RoutingKey, messageBody);
-
-                    inboxRepository.Add(new InboxConsumedMessage
-                    {
-                        MessageId = eventId,
-                        Handler = HandlerName,
-                        ProcessedAt = DateTime.UtcNow
-                    });
-
-                    await unitOfWork.SaveChangesAsync();
-                    await unitOfWork.CommitTransactionAsync();
-                }, policyContext);
-
-                stopwatch.Stop();
-                // Было: "Successfully processed message. Latency: {LatencyMs}ms."
-                _logger.LogInformation("Сообщение успешно обработано. Задержка: {LatencyMs} мс.",
-                    stopwatch.ElapsedMilliseconds);
-                await AcknowledgeMessageAsync(eventArgs.DeliveryTag);
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                // Было: "Failed to process message after all retries. Moving to DLX/NACKing. Latency: {LatencyMs}ms."
-                _logger.LogError(ex,
-                    "Не удалось обработать сообщение после всех попыток. Перемещение в карантин. Задержка: {LatencyMs} мс.",
-                    stopwatch.ElapsedMilliseconds);
-
-                await HandleDeadLetterAsync(null, $"Не удалось обработать после всех попыток: {ex.Message}", eventId,
-                    messageBody);
-                await NegativeAcknowledgeMessageAsync(eventArgs.DeliveryTag);
-            }
-        }
+            await unitOfWork.SaveChangesAsync();
+            await unitOfWork.CommitTransactionAsync();
+        }, policyContext);
     }
 
     private async Task HandleDeadLetterAsync(IServiceScope? scope, string error, Guid messageId, string payload)
@@ -281,11 +304,7 @@ public abstract class RabbitMqConsumerBase : BackgroundService
     {
         if (_channel is not null) await _channel.BasicAckAsync(deliveryTag, false);
     }
-
-    private async Task NegativeAcknowledgeMessageAsync(ulong deliveryTag)
-    {
-        if (_channel is not null) await _channel.BasicNackAsync(deliveryTag, false, false);
-    }
+    
 
     protected abstract Task ProcessMessageAsync(IServiceScope scope, string routingKey, string messageBody);
 }

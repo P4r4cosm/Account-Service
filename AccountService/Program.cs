@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using System.Text.Json.Serialization;
 using AccountService.Infrastructure.Persistence;
 using AccountService.Infrastructure.Persistence.HangfireServices;
@@ -19,7 +20,9 @@ using Hangfire.PostgreSql;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Polly;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 using Serilog;
 using Serilog.Events;
 
@@ -79,7 +82,6 @@ public class Program
         //Options
         builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
 
-
         //RabbitMq
         var rabbitMqOptions = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqOptions>();
         if (rabbitMqOptions is null)
@@ -90,10 +92,30 @@ public class Program
             Port = rabbitMqOptions.Port,
             UserName = rabbitMqOptions.UserName,
             Password = rabbitMqOptions.Password,
-            VirtualHost = rabbitMqOptions.VirtualHost
+            VirtualHost = rabbitMqOptions.VirtualHost,
+            AutomaticRecoveryEnabled = true,
+            // Опционально: интервал между попытками переподключения.
+            NetworkRecoveryInterval = TimeSpan.FromSeconds(10) 
         };
 
-        var connection = await factory.CreateConnectionAsync();
+        // Создаем политику Polly для повторного подключения к RabbitMQ при старте.
+        var retryPolicy = Policy
+            // Указываем, какие исключения мы хотим обрабатывать
+            .Handle<BrokerUnreachableException>()
+            .Or<SocketException>()
+            // Определяем стратегию повторов: 10 попыток с экспоненциальной задержкой
+            .WaitAndRetryAsync(
+                retryCount: 10,
+                sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                onRetry: (exception, timeSpan, retryCount, _) =>
+                {
+                    // Логируем каждую попытку переподключения. Это очень важно для диагностики.
+                    Log.Warning(
+                        "Не удалось подключиться к RabbitMQ. Попытка {RetryCount} через {TimeSpan}. Причина: {Exception}",
+                        retryCount, timeSpan, exception.Message);
+                });
+        var connection = await retryPolicy.ExecuteAsync(() => factory.CreateConnectionAsync());
+        Log.Information("Успешное подключение к RabbitMQ Host: {HostName}", rabbitMqOptions.HostName);
 
         builder.Services.AddSingleton(connection);
 
@@ -122,7 +144,6 @@ public class Program
         // PostgreSQL
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
         // Repository + UnitOfWork
         builder.Services.AddScoped<IAccountRepository, PostgresAccountRepository>();
         builder.Services.AddScoped<ITransactionRepository, PostgresTransactionRepository>();

@@ -7,4 +7,5 @@ public interface IUnitOfWork
     Task BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default);
     Task CommitTransactionAsync(CancellationToken cancellationToken = default);
     Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+    
 }

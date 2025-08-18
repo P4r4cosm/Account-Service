@@ -19,8 +19,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     private IDbContextTransaction? _currentTransaction;
 
     public DbSet<AccrualResult> AccrualResults { get; set; }
-
-
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("btree_gist");
