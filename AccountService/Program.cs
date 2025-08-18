@@ -59,7 +59,7 @@ public class Program
         }
         finally
         {
-            await Log.CloseAndFlushAsync(); // Очень важно! Гарантирует, что все логи будут записаны перед выходом.
+            await Log.CloseAndFlushAsync(); // Гарантирует, что все логи будут записаны перед выходом.
         }
     }
 
@@ -78,7 +78,7 @@ public class Program
         // Регистрируем IHttpContextAccessor, чтобы иметь доступ к HttpContext из сервисов
         builder.Services.AddHttpContextAccessor();
 
-        // Регистрируем наш провайдер как Scoped (он будет жить в рамках одного HTTP-запроса)
+        // Регистрируем провайдер как Scoped (он будет жить в рамках одного HTTP-запроса)
         builder.Services.AddScoped<ICorrelationIdProvider, CorrelationIdProvider>();
 
 
