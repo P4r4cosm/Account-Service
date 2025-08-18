@@ -117,7 +117,6 @@
     *   **Hangfire Dashboard:** `http://localhost/hangfire`
     *   **Health Checks UI:** `http://localhost/health-ui`
 
-Сервис будет доступен на 80-м порту *внутри Docker-сети*, который проброшен на `80`-й порт вашего компьютера.
 Данные PostgreSQL и RabbitMQ сохраняются в именованных Docker-томах (`postgres-data`, `rabbitmq-data`) и переживают перезапуск контейнеров.
 ### Вариант 2: Локальный запуск для отладки (без Docker)
 
