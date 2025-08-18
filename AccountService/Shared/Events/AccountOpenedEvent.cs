@@ -9,6 +9,7 @@ namespace AccountService.Shared.Events;
 /// Routing Key: `account.opened`
 /// </summary>
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
+[RoutingKey("account.opened")]
 public class AccountOpenedEvent
 {
     /// <summary>

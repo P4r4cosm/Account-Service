@@ -8,6 +8,7 @@ namespace AccountService.Shared.Events;
 /// Routing Key: `money.transfer.completed`
 /// </summary>
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
+[RoutingKey("money.transfercompleted")]
 public class TransferCompletedEvent
 {
     /// <summary>

@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using AccountService.Infrastructure.Persistence.Interfaces;
+using AccountService.Shared.Behaviors;
 using AccountService.Shared.Domain;
 using AccountService.Shared.Events;
 using AccountService.Shared.Options;
@@ -20,15 +21,19 @@ public class RabbitMqMessagePublisher : IMessagePublisher
     private readonly RabbitMqOptions _options;
     private readonly ILogger<RabbitMqMessagePublisher> _logger;
     private readonly AsyncRetryPolicy _retryPolicy;
+    private readonly IEventRoutingKeyMapper _routingKeyMapper;
+    
 
     public RabbitMqMessagePublisher(
         IConnection connection,
         IOptions<RabbitMqOptions> options,
-        ILogger<RabbitMqMessagePublisher> logger)
+        ILogger<RabbitMqMessagePublisher> logger,
+        IEventRoutingKeyMapper routingKeyMapper)
     {
         _connection = connection;
         _options = options.Value;
         _logger = logger;
+        _routingKeyMapper = routingKeyMapper;
 
 
         _retryPolicy = Policy
@@ -53,7 +58,7 @@ public class RabbitMqMessagePublisher : IMessagePublisher
     public async Task PublishAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
-        var routingKey = GetRoutingKey(message.Type);
+        var routingKey = _routingKeyMapper.GetRoutingKey(message.Type);
 
         try
         {
@@ -122,24 +127,5 @@ public class RabbitMqMessagePublisher : IMessagePublisher
                 message.Id, routingKey, message.CorrelationId, stopwatch.ElapsedMilliseconds);
             throw;
         }
-    }
-
-    private static string GetRoutingKey(string eventType)
-    {
-        return eventType switch
-        {
-            nameof(AccountOpenedEvent) => "account.opened",
-            nameof(MoneyCreditedEvent) => "money.credited",
-            nameof(MoneyDebitedEvent) => "money.debited",
-            // для AccountOwnerChangedEvent и AccountInterestRateChangedEvent пришлось использовать неправильное написание,
-            // чтобы попасть в account.crm (routing key: account.*)
-            nameof(AccountOwnerChangedEvent) => "account.ownerChanged",
-            nameof(AccountInterestRateChangedEvent) => "account.rateChanged",
-            nameof(AccountReopenedEvent) => "account.reopened",
-            nameof(TransferCompletedEvent) => "money.transfer.completed",
-            nameof(InterestAccruedEvent) => "money.interest.accrued",
-            nameof(AccountClosedEvent) => "account.closed",
-            _ => "unknown"
-        };
     }
 }

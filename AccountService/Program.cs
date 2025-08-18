@@ -71,7 +71,10 @@ public class Program
                 .Enrich.FromLogContext()
                 .Enrich.WithProperty("Application", "AccountService") // Добавляем статическое поле ко всем логам
         );
-
+    
+        // Сервис для определения ключей для публикуемых в RabbitMq событий
+        builder.Services.AddSingleton<IEventRoutingKeyMapper, EventRoutingKeyMapper>();
+        
         // Регистрируем IHttpContextAccessor, чтобы иметь доступ к HttpContext из сервисов
         builder.Services.AddHttpContextAccessor();
 

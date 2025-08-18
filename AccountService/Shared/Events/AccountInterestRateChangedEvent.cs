@@ -8,6 +8,7 @@ namespace AccountService.Shared.Events;
 /// Routing Key: `account.rateChanged`
 /// </summary>
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")] //Resharper жалуется на неиспользуемый get, он нужен для десериализации
+[RoutingKey("account.ratechanged")]
 public class AccountInterestRateChangedEvent
 {
     /// <summary>
