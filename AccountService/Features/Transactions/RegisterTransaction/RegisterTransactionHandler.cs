@@ -1,6 +1,9 @@
 using System.Data;
+using System.Text.Json;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Events;
+using AccountService.Shared.Providers;
 using AutoMapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +15,8 @@ public class RegisterTransactionHandler(
     ILogger<RegisterTransactionHandler> logger,
     ITransactionRepository transactionRepository,
     IUnitOfWork unitOfWork,
+    IOutboxMessageRepository outboxMessageRepository,
+    ICorrelationIdProvider correlationIdProvider,
     IMapper mapper)
     : IRequestHandler<RegisterTransactionCommand, MbResult<TransactionDto>>
 {
@@ -29,7 +34,10 @@ public class RegisterTransactionHandler(
             if (account.CloseDate.HasValue)
                 return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Validation",
                     "Операции по закрытому счёту невозможны."));
-
+            if (account.IsFrozen && Enum.Parse<TransactionType>(request.Type)==TransactionType.Debit)
+                return MbResult<TransactionDto>.Failure(MbError.Custom("Account.Conflict",
+                    $"Счёт {request.AccountId} заморожен, операции снятия средств невозможны."));
+            
             // Создаем новую сущность транзакции
             var newTransaction = mapper.Map<Transaction>(request);
             newTransaction.Id = Guid.NewGuid();
@@ -43,6 +51,69 @@ public class RegisterTransactionHandler(
                     "Недостаточно средств на счёте для списания."));
 
             account.Balance += newTransaction.Type == TransactionType.Credit ? request.Amount : -request.Amount;
+            
+            
+            var causationId = request.CommandId;
+            var correlationId = correlationIdProvider.GetCorrelationId();
+            string payloadJson;
+            string eventType;
+            Guid eventId;
+            DateTime occurredAt;
+
+            if (newTransaction.Type == TransactionType.Credit)
+            {
+                // Создаем DTO с полезной нагрузкой
+                var moneyCreditedPayload = new MoneyCreditedEvent
+                {
+                    AccountId = newTransaction.AccountId,
+                    Currency = newTransaction.Currency,
+                    Amount = newTransaction.Amount,
+                    OperationId = newTransaction.Id
+                };
+
+                //  Оборачиваем в "конверт"
+                var eventEnvelope =
+                    new EventEnvelope<MoneyCreditedEvent>(moneyCreditedPayload, correlationId, causationId);
+
+                //  Заполняем наши переменные
+                payloadJson = JsonSerializer.Serialize(eventEnvelope);
+                eventType = nameof(MoneyCreditedEvent);
+                eventId = eventEnvelope.EventId;
+                occurredAt = eventEnvelope.OccurredAt;
+            }
+            else // TransactionType.Debit
+            {
+                //  Создаем DTO с полезной нагрузкой
+                var moneyDebitedPayload = new MoneyDebitedEvent
+                {
+                    AccountId = newTransaction.AccountId,
+                    Currency = newTransaction.Currency,
+                    Amount = newTransaction.Amount,
+                    OperationId = newTransaction.Id,
+                    Reason = newTransaction.Description 
+                };
+
+                //  Оборачиваем в "конверт"
+                var eventEnvelope =
+                    new EventEnvelope<MoneyDebitedEvent>(moneyDebitedPayload, correlationId, causationId);
+
+                //  Заполняем наши переменные
+                payloadJson = JsonSerializer.Serialize(eventEnvelope);
+                eventType = nameof(MoneyDebitedEvent);
+                eventId = eventEnvelope.EventId;
+                occurredAt = eventEnvelope.OccurredAt;
+            }
+
+            // 5. Создаем OutboxMessage ОДИН РАЗ, используя подготовленные данные
+            var outboxMessage = new OutboxMessage
+            {
+                Id = eventId,
+                Type = eventType,
+                Payload = payloadJson,
+                OccurredAt = occurredAt,
+                CorrelationId = correlationId
+            };
+            outboxMessageRepository.Add(outboxMessage);
 
             // Явно добавляем новую транзакцию через ее собственный репозиторий
             await transactionRepository.AddAsync(newTransaction, cancellationToken);

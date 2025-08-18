@@ -17,7 +17,7 @@ namespace AccountService.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.8")
+                .HasAnnotation("ProductVersion", "9.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "btree_gist");
@@ -45,6 +45,9 @@ namespace AccountService.Migrations
 
                     b.Property<decimal?>("InterestRate")
                         .HasColumnType("numeric");
+
+                    b.Property<bool>("IsFrozen")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastInterestAccrualDate")
                         .HasColumnType("timestamp with time zone");
@@ -113,6 +116,114 @@ namespace AccountService.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex(new[] { "Timestamp" }, "IX_Transactions_Date_Gist"), "gist");
 
                     b.ToTable("Transactions");
+                });
+
+            modelBuilder.Entity("AccountService.Shared.Domain.AccrualResult", b =>
+                {
+                    b.Property<decimal>("AccruedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("accrued_amount");
+
+                    b.Property<DateTime?>("PeriodFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_from");
+
+                    b.Property<DateTime?>("PeriodTo")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_to");
+
+                    b.ToTable("AccrualResults");
+                });
+
+            modelBuilder.Entity("AccountService.Shared.Domain.InboxConsumedMessage", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Handler")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("MessageId");
+
+                    b.ToTable("inbox_consumed_messages", (string)null);
+                });
+
+            modelBuilder.Entity("AccountService.Shared.Domain.InboxDeadLetterMessage", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Error")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Handler")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("character varying(5000)");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("MessageId");
+
+                    b.HasIndex("ReceivedAt");
+
+                    b.ToTable("inbox_dead_letters", (string)null);
+                });
+
+            modelBuilder.Entity("AccountService.Shared.Domain.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("ProcessedAt")
+                        .HasDatabaseName("IX_OutboxMessages_ProcessedAt_Pending")
+                        .HasFilter("\"ProcessedAt\" IS NULL");
+
+                    b.ToTable("outbox_messages", (string)null);
                 });
 
             modelBuilder.Entity("AccountService.Features.Transactions.Transaction", b =>

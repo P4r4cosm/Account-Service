@@ -1,8 +1,11 @@
 using System.Data;
+using System.Text.Json;
 using AccountService.Features.Accounts;
 using AccountService.Features.Transactions;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Events;
+using AccountService.Shared.Providers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -13,6 +16,8 @@ public class CreateTransferHandler(
     IAccountRepository accountRepository,
     ITransactionRepository transactionRepository,
     IUnitOfWork unitOfWork,
+    IOutboxMessageRepository outboxMessageRepository,
+    ICorrelationIdProvider correlationIdProvider,
     ILogger<CreateTransferHandler> logger)
     : IRequestHandler<CreateTransferCommand, MbResult>
 {
@@ -31,7 +36,7 @@ public class CreateTransferHandler(
         {
             var fromAccount = await accountRepository.GetByIdAsync(request.FromAccountId, cancellationToken);
             var toAccount = await accountRepository.GetByIdAsync(request.ToAccountId, cancellationToken);
-            var validationResult = await ValidateTransferAsync(request, fromAccount, toAccount);
+            var validationResult = await ValidateTransfer(request, fromAccount, toAccount);
             if (validationResult.IsFailure)
             {
                 await unitOfWork.RollbackTransactionAsync(cancellationToken);
@@ -47,6 +52,37 @@ public class CreateTransferHandler(
 
             await transactionRepository.AddAsync(debitTransaction, cancellationToken);
             await transactionRepository.AddAsync(creditTransaction, cancellationToken);
+
+            var correlationId = correlationIdProvider.GetCorrelationId();
+            // В качестве ID причины используем ID самой команды на перевод
+            var causationId = request.CommandId;
+
+            // Генерируем уникальный ID для самой операции перевода.
+            var transferId = Guid.NewGuid();
+
+            var transferCompletedEvent = new TransferCompletedEvent
+            {
+                SourceAccountId = fromAccount.Id,
+                DestinationAccountId = toAccount.Id,
+                Amount = request.Amount,
+                Currency = fromAccount.Currency,
+                TransferId = transferId
+            };
+            var eventEnvelope =
+                new EventEnvelope<TransferCompletedEvent>(transferCompletedEvent, correlationId, causationId);
+
+
+            // 3. Создаем и добавляем сообщение в Outbox
+            var outboxMessage = new OutboxMessage
+            {
+                Id = eventEnvelope.EventId,
+                Type = nameof(TransferCompletedEvent),
+                Payload = JsonSerializer.Serialize(eventEnvelope),
+                OccurredAt = eventEnvelope.OccurredAt,
+                CorrelationId = eventEnvelope.Meta.CorrelationId
+            };
+            outboxMessageRepository.Add(outboxMessage);
+
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -126,7 +162,7 @@ public class CreateTransferHandler(
         toAccount.Balance += amount;
     }
 
-    private static Task<MbResult> ValidateTransferAsync(
+    private static Task<MbResult> ValidateTransfer(
         CreateTransferCommand request,
         Account? fromAccount,
         Account? toAccount)
@@ -142,10 +178,16 @@ public class CreateTransferHandler(
             return Task.FromResult(MbResult.Failure(MbError.Custom("Transfer.NotFound",
                 $"Счёт зачисления {request.ToAccountId} не найден.")));
         }
+        if (fromAccount.IsFrozen)
+        {
+            return Task.FromResult(MbResult.Failure(MbError.Custom("Account.Conflict",
+                $"Счёт списания {fromAccount.Id} заморожен, операции снятия средств невозможны.")));
+        }
 
         if (fromAccount.Id == toAccount.Id)
         {
-            return Task.FromResult(MbResult.Failure(MbError.Custom("Transfer.Validation", "Перевод на тот же счёт невозможен.")));
+            return Task.FromResult(
+                MbResult.Failure(MbError.Custom("Transfer.Validation", "Перевод на тот же счёт невозможен.")));
         }
 
         if (fromAccount.CloseDate.HasValue)

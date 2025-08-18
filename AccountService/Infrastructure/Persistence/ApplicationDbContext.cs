@@ -12,14 +12,19 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Account> Accounts { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
 
-    private IDbContextTransaction? _currentTransaction; // Поле для хранения активной транзакции
+    public DbSet<OutboxMessage> OutboxMessages { get; set; }
+    public DbSet<InboxConsumedMessage> InboxConsumedMessages { get; set; }
+    public DbSet<InboxDeadLetterMessage> InboxDeadLetterMessages { get; set; }
 
+    private IDbContextTransaction? _currentTransaction;
 
+    public DbSet<AccrualResult> AccrualResults { get; set; }
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("btree_gist");
         base.OnModelCreating(modelBuilder);
-        
+
         // Конфигурация для таблицы Accounts
         modelBuilder.Entity<Account>(entity =>
         {
@@ -50,6 +55,43 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasMethod("gist")
                 .HasDatabaseName("IX_Transactions_Date_Gist");
         });
+
+        // Конфигурация для таблицы OutboxMessages
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            // Явно указываем имя таблицы 
+            entity.ToTable("outbox_messages");
+
+            entity.HasKey(m => m.Id);
+
+            // Оптимизируем хранение JSON в Postgres
+            entity.Property(m => m.Payload).HasColumnType("jsonb");
+
+            // Индекс для быстрого поиска неопубликованных сообщений фоновым процессом.
+            // Это частичный индекс - он будет содержать только те строки, где ProcessedAt IS NULL.
+            // Это делает его очень маленьким и эффективным.
+            entity.HasIndex(m => m.ProcessedAt)
+                .HasFilter("\"ProcessedAt\" IS NULL")
+                .HasDatabaseName("IX_OutboxMessages_ProcessedAt_Pending");
+
+            // Индекс для поиска и трассировки по CorrelationId
+            entity.HasIndex(m => m.CorrelationId);
+        });
+
+        // Конфигурация для таблицы InboxConsumedMessages
+        modelBuilder.Entity<InboxConsumedMessage>(entity =>
+        {
+            entity.ToTable("inbox_consumed_messages");
+            entity.HasKey(m => m.MessageId);
+        });
+        modelBuilder.Entity<InboxDeadLetterMessage>(entity =>
+        {
+            entity.ToTable("inbox_dead_letters");
+            entity.HasKey(m => m.MessageId);
+            entity.HasIndex(m => m.ReceivedAt);
+        });
+
+        modelBuilder.Entity<AccrualResult>().HasNoKey();
     }
 
     public async Task BeginTransactionAsync(IsolationLevel isolationLevel,

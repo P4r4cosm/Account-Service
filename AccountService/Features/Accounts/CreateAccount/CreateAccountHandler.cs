@@ -1,7 +1,10 @@
 using System.Data;
+using System.Text.Json;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Events;
+using AccountService.Shared.Providers;
 using AutoMapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +15,8 @@ public class CreateAccountHandler(
     IAccountRepository accountRepository,
     IMapper mapper,
     IUnitOfWork unitOfWork,
+    IOutboxMessageRepository outboxMessageRepository,
+    ICorrelationIdProvider correlationIdProvider,
     ILogger<CreateAccountHandler> logger,
     IClientVerificationService clientVerificationService)
     : IRequestHandler<CreateAccountCommand, MbResult<AccountDto>>
@@ -33,10 +38,33 @@ public class CreateAccountHandler(
             account.Balance = 0;
             account.OpenedDate = DateTime.UtcNow;
 
+
             // Добавляем запись
             await accountRepository.AddAsync(account, cancellationToken);
-            // Фиксируем изменения
 
+            var correlationId = correlationIdProvider.GetCorrelationId();
+            var causationId = request.CommandId;
+            
+            var accountOpenedEvent = new AccountOpenedEvent
+            {
+                AccountId = account.Id,
+                OwnerId = account.OwnerId,
+                Currency = account.Currency,
+                Type = account.AccountType.ToString()
+            };
+            var eventEnvelope = new EventEnvelope<AccountOpenedEvent>(accountOpenedEvent, correlationId, causationId);
+
+            // 4. Создаем и добавляем сообщение в Outbox
+            var outboxMessage = new OutboxMessage
+            {
+                Id = eventEnvelope.EventId,
+                Type = nameof(AccountOpenedEvent), // Безопасное получение имени типа
+                Payload = JsonSerializer.Serialize(eventEnvelope),
+                OccurredAt = eventEnvelope.OccurredAt,
+                CorrelationId = correlationId
+            };
+            outboxMessageRepository.Add(outboxMessage);
+            
             // Пытаемся зафиксировать изменения
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -49,6 +77,7 @@ public class CreateAccountHandler(
         }
         catch (DbUpdateException ex)
         {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             // Проверяем внутреннее исключение на конкретные ошибки БД
             if (ex.InnerException is Npgsql.PostgresException
                 {
@@ -61,9 +90,15 @@ public class CreateAccountHandler(
             }
 
             logger.LogError(ex, "Ошибка базы данных при создании счета.");
-            // Возвращаем общую ошибку, которая превратится в HTTP 500
             return MbResult<AccountDto>.Failure(MbError.Custom("Database.DbError",
                 "Произошла ошибка при сохранении данных в базу."));
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+
+            logger.LogError(ex, "Непредвиденная ошибка при создании счета.");
+            return MbResult<AccountDto>.Failure(MbError.Custom("Server.Error", "Произошла внутренняя ошибка сервера."));
         }
     }
 }

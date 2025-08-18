@@ -4,6 +4,7 @@ using AccountService.Features.Transactions;
 using AccountService.Features.Transfers.CreateTransfer;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Providers;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -24,11 +25,14 @@ public class CreateTransferHandlerTests
         _transactionRepositoryMock = new Mock<ITransactionRepository>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         var loggerMock = new Mock<ILogger<CreateTransferHandler>>();
-
+        var outboxMessageRepository = new Mock<IOutboxMessageRepository>();
+        var correlationIdProviderMock = new Mock<ICorrelationIdProvider>();
         _handler = new CreateTransferHandler(
             _accountRepositoryMock.Object,
             _transactionRepositoryMock.Object,
             _unitOfWorkMock.Object,
+            outboxMessageRepository.Object,
+            correlationIdProviderMock.Object,
             loggerMock.Object);
     }
     

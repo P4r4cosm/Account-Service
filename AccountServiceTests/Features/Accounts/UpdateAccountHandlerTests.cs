@@ -3,6 +3,7 @@ using AccountService.Features.Accounts.UpdateAccount;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Providers;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -23,10 +24,13 @@ public class UpdateAccountHandlerTests
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         var loggerMock = new Mock<ILogger<UpdateAccountHandler>>();
         _clientVerificationServiceMock = new Mock<IClientVerificationService>();
-
+        var outboxMessageRepository = new Mock<IOutboxMessageRepository>();
+        var correlationIdProviderMock = new Mock<ICorrelationIdProvider>();
         _handler = new UpdateAccountHandler(
             _accountRepositoryMock.Object,
             _unitOfWorkMock.Object,
+            outboxMessageRepository.Object,
+            correlationIdProviderMock.Object,
             loggerMock.Object,
             _clientVerificationServiceMock.Object);
     }

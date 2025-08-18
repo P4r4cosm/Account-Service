@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using AccountService.Shared.Domain;
 using MediatR;
 
@@ -13,6 +14,12 @@ namespace AccountService.Features.Transfers.CreateTransfer;
 [SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")] //Resharper решает, что set-еры не нужны, а они нужны для корректного создания команд в эндпоинтах
 public class CreateTransferCommand : IRequest<MbResult>
 {
+    
+    /// <summary>
+    /// ID комманды
+    /// </summary>
+    [JsonIgnore]
+    public Guid CommandId { get; set; }
     /// <summary>
     /// ID счёта, с которого будут списаны средства.
     /// </summary>
@@ -36,4 +43,12 @@ public class CreateTransferCommand : IRequest<MbResult>
     /// </summary>
     /// <example>Перевод на накопительный счёт</example>
     public string? Description { get; set; }
+    
+    /// <summary>
+    /// Необязательный идентификатор корреляции для сквозной трассировки.
+    /// Если не предоставлен клиентом, будет сгенерирован автоматически.
+    /// Это свойство не биндится из тела запроса, а устанавливается в контроллере.
+    /// </summary>
+    [JsonIgnore]
+    public Guid? CorrelationId { get; set; }
 }

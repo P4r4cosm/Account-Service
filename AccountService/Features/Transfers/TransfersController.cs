@@ -10,6 +10,7 @@ namespace AccountService.Features.Transfers;
 [Authorize]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[ApiExplorerSettings(GroupName = "v1")] // Группируем в отдельный раздел Swagger
 public class TransfersController(IMediator mediator) : BaseApiController(mediator)
 {
     /// <summary>
@@ -37,6 +38,7 @@ public class TransfersController(IMediator mediator) : BaseApiController(mediato
     /// 
     /// </remarks>
     /// <param name="command">Данные для выполнения перевода.</param>
+    /// <param name="correlationId">Необязательный идентификатор корреляции (из заголовка X-Correlation-ID).</param>
     /// <returns>Результат операции в формате MbResult (без значения).</returns>
     /// <response code="200">Перевод успешно выполнен. В теле ответа возвращается успешный объект MbResult.</response>
     /// <response code="400">Некорректные данные или нарушение бизнес-правил. В теле ответа возвращается объект MbResult с ошибкой.</response>
@@ -47,11 +49,15 @@ public class TransfersController(IMediator mediator) : BaseApiController(mediato
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> CreateTransfer([FromBody] CreateTransferCommand command)
+    public async Task<IActionResult> CreateTransfer([FromBody] CreateTransferCommand command,
+        [FromHeader(Name = "X-Correlation-ID")]
+        Guid? correlationId)
     {
+        command.CorrelationId = correlationId;
+        command.CommandId= Guid.NewGuid();
         // Отправляем команду в MediatR, который вызовет CreateTransferHandler
         var result = await Mediator.Send(command);
-        
+
         // Передаем результат в наш централизованный обработчик
         return HandleResult(result);
     }

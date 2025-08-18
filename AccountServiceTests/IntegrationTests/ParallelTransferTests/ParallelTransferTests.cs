@@ -7,7 +7,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AccountServiceTests.ParallelTransferTests;
+namespace AccountServiceTests.IntegrationTests.ParallelTransferTests;
 
 public class ParallelTransferTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {

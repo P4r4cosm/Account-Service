@@ -16,11 +16,18 @@
       - "Authentication__ValidIssuer=http://localhost:8080/realms/account_service"
       - "Swagger__ClientId=public-client"
       - "ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=account_db;Username=user;Password=password"
+      - "RabbitMq__HostName=rabbitmq"
+      - "RabbitMq__Port=5672"
+      - "RabbitMq__UserName=user"
+      - "RabbitMq__Password=password"
+      - "HealthChecks-UI__HealthChecks__Uri=http://account-service/health/ready"
     networks:
       - app-network
     depends_on:
-      - keycloak
-      - postgres
+      postgres:
+          condition: service_healthy
+      rabbitmq:
+          condition: service_healthy
     restart: always
   
   keycloak:
@@ -39,12 +46,8 @@
       - "8080:8080"
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+    restart:
+      always
   
   postgres:
     image: postgres
@@ -59,7 +62,31 @@
       - "5432:5432"
     networks:
       - app-network
-    # Политика перезапуска
+    healthcheck: # Добавлена проверка состояния
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+  
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq/
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     restart: always
 
 
@@ -68,4 +95,5 @@ networks:
     driver: bridge
 
 volumes:
+  rabbitmq-data:
   postgres-data:

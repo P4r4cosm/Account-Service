@@ -4,6 +4,7 @@ using AccountService.Features.Accounts.CreateAccount;
 using AccountService.Infrastructure.Persistence.Interfaces;
 using AccountService.Infrastructure.Verification;
 using AccountService.Shared.Domain;
+using AccountService.Shared.Providers;
 using AutoMapper;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -28,11 +29,15 @@ public class CreateAccountHandlerTests
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         var loggerMock = new Mock<ILogger<CreateAccountHandler>>();
         _clientVerificationServiceMock = new Mock<IClientVerificationService>();
+        var outboxMessageRepository = new Mock<IOutboxMessageRepository>();
+        var correlationIdProviderMock = new Mock<ICorrelationIdProvider>();
 
         _handler = new CreateAccountHandler(
             _accountRepositoryMock.Object,
             _mapperMock.Object,
             _unitOfWorkMock.Object,
+            outboxMessageRepository.Object,
+            correlationIdProviderMock.Object,
             loggerMock.Object,
             _clientVerificationServiceMock.Object);
     }

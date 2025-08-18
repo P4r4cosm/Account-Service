@@ -20,9 +20,9 @@ namespace AccountService.Features.Accounts;
 [Authorize]
 [Produces("application/json")]
 [Route("api/[controller]")]
+[ApiExplorerSettings(GroupName = "v1")] // Группируем в отдельный раздел Swagger
 public class AccountsController(IMediator mediator) : BaseApiController(mediator)
 {
-
     // --- CREATE ---
 
     /// <summary>
@@ -47,6 +47,7 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     /// - interestRate: опционально, но если указано, должно быть >= 0
     /// </remarks>
     /// <param name="command">Данные для создания счёта.</param>
+    /// <param name="correlationId">Необязательный идентификатор корреляции (из заголовка X-Correlation-ID).</param>
     /// <returns>Результат операции в формате MbResult. При успехе поле 'value' содержит данные созданного счёта.</returns>
     /// <response code="201">Счёт успешно создан. В теле ответа возвращается объект MbResult с данными счёта.</response>
     /// <response code="400">Некорректные данные в запросе. В теле ответа возвращается объект MbResult с деталями ошибки.</response>
@@ -57,14 +58,20 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> CreateAccount(CreateAccountCommand command)
+    public async Task<IActionResult> CreateAccount([FromBody] CreateAccountCommand command,
+        [FromHeader(Name = "X-Correlation-ID")]
+        Guid? correlationId)
     {
+        command.CorrelationId = correlationId;
+        command.CommandId = Guid.NewGuid();
         var result = await Mediator.Send(command);
 
         // Проверяем, что результат успешный и содержит значение, прежде чем обращаться к result.Value
-        return !result.IsSuccess ?
+        return !result.IsSuccess
+            ?
             // Если произошла ошибка (например, валидации), используем стандартный обработчик
-            HandleResult(result) : HandleCreationResult(result, nameof(GetAccountById), new { accountId = result.Value!.Id });
+            HandleResult(result)
+            : HandleCreationResult(result, nameof(GetAccountById), new { accountId = result.Value!.Id });
     }
 
     // --- READ ---
@@ -177,6 +184,7 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     /// </remarks>
     /// <param name="accountId">ID счёта для обновления.</param>
     /// <param name="command">Данные для обновления.</param>
+    /// <param name="correlationId">Необязательный идентификатор корреляции (из заголовка X-Correlation-ID).</param>
     /// <returns>Результат операции в формате MbResult (без значения).</returns>
     /// <response code="200">Данные успешно обновлены. Возвращает успешный MbResult.</response>
     /// <response code="400">Некорректные данные. Возвращает MbResult с ошибкой.</response>
@@ -187,8 +195,12 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdateAccount([FromRoute] Guid accountId, [FromBody] UpdateAccountCommand command)
+    public async Task<IActionResult> UpdateAccount([FromRoute] Guid accountId, [FromBody] UpdateAccountCommand command,
+        [FromHeader(Name = "X-Correlation-ID")] Guid? correlationId)
+
     {
+        command.CorrelationId = correlationId;
+        command.CommandId = Guid.NewGuid();
         command.AccountId = accountId;
         var result = await Mediator.Send(command);
         return HandleResult(result);
@@ -210,6 +222,7 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     /// </remarks>
     /// <param name="accountId">ID счёта для обновления.</param>
     /// <param name="command">Данные для обновления.</param>
+    /// <param name="correlationId">Необязательный идентификатор корреляции (из заголовка X-Correlation-ID).</param>
     /// <returns>Результат операции в формате MbResult (без значения).</returns>
     /// <response code="200">Данные успешно обновлены. Возвращает успешный MbResult.</response>
     /// <response code="400">Некорректные данные. Возвращает MbResult с ошибкой.</response>
@@ -220,8 +233,11 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> PatchAccount([FromRoute] Guid accountId, [FromBody] PatchAccountCommand command)
+    public async Task<IActionResult> PatchAccount([FromRoute] Guid accountId, [FromBody] PatchAccountCommand command
+        ,   [FromHeader(Name = "X-Correlation-ID")] Guid? correlationId)
     {
+        command.CorrelationId = correlationId;
+        command.CommandId = Guid.NewGuid();
         command.AccountId = accountId;
         var result = await Mediator.Send(command);
         return HandleResult(result);
@@ -233,6 +249,7 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     /// Удаляет существующий банковский счёт.
     /// </summary>
     /// <param name="accountId">Идентификатор удаляемого счёта.</param>
+    /// <param name="correlationId">Необязательный идентификатор корреляции (из заголовка X-Correlation-ID).</param>
     /// <returns>Результат операции в формате MbResult (без значения).</returns>
     /// <response code="200">Счёт успешно удалён. Возвращает успешный MbResult.</response>
     /// <response code="404">Счёт не найден. Возвращает MbResult с ошибкой.</response>
@@ -241,11 +258,17 @@ public class AccountsController(IMediator mediator) : BaseApiController(mediator
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(MbResult), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> DeleteAccount([FromRoute] Guid accountId)
+    public async Task<IActionResult> DeleteAccount([FromRoute] Guid accountId,
+        [FromHeader(Name = "X-Correlation-ID")]
+        Guid? correlationId)
     {
-        var command = new DeleteAccountCommand(accountId);
+        var command = new DeleteAccountCommand
+        {
+            AccountId = accountId,
+            CorrelationId = correlationId,
+            CommandId = Guid.NewGuid()
+        };
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
-
 }

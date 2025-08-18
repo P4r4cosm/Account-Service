@@ -1,6 +1,9 @@
 using System.Reflection;
+using AccountService.Infrastructure.Persistence.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using RabbitMQ.Client;
 
 namespace AccountService.Shared.Extensions;
 
@@ -17,6 +20,13 @@ public static class ServiceCollectionExtensions
                 Title = "Account Service API",
                 Description =
                     "Микросервис для управления банковскими счетами и транзакциями в соответствии с заданием Модуль Банка."
+            });
+            // Определяем отдельный документ для Событий
+            options.SwaggerDoc("events-v1", new OpenApiInfo
+            {
+                Title = "События (Events)",
+                Version = "v1",
+                Description = "Асинхронные контракты (события), которыми сервис обменивается через брокер сообщений."
             });
             options.EnableAnnotations();
             // Включаем отображение комментариев в интерфейсе Swagger
@@ -75,5 +85,27 @@ public static class ServiceCollectionExtensions
                     ValidIssuer = configuration["Authentication:ValidIssuer"]
                 };
             });
+    }
+
+    public static void AddAllHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddHealthChecks()
+            // Добавляем проверку подключения к PostgreSQL
+            .AddNpgSql(
+                configuration.GetConnectionString("DefaultConnection") ?? string.Empty,
+                name: "PostgresSQL",
+                tags: ["database"])
+        
+            // Добавляем проверку подключения к RabbitMQ
+            .AddRabbitMQ(
+                sp => sp.GetRequiredService<IConnection>(),
+                name: "RabbitMQ",
+                tags: ["broker"])
+        
+            // Добавляем нашу кастомную проверку Outbox
+            .AddCheck<OutboxHealthCheck>(
+                "Outbox Lag", // Имя проверки
+                failureStatus: HealthStatus.Unhealthy, // Если упадет с Exception, будет Unhealthy
+                tags: ["outbox"]);
     }
 }

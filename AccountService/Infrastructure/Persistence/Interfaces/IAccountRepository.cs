@@ -24,11 +24,14 @@ public interface IAccountRepository
 
     Task UpdateAsync(Account account, CancellationToken cancellationToken);
     
-    Task AccrueInterest(Guid accountId, CancellationToken cancellationToken);
+    Task<AccrualResult?> AccrueInterest(Guid accountId, CancellationToken cancellationToken);
     
     Task<int> GetAccountCountForAccrueInterestAsync(CancellationToken cancellationToken);
     
     Task<IEnumerable<Guid>> GetPagedAccountIdsForAccrueInterestAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
     
+    Task<int> FreezeAccountsByOwnerAsync(Guid ownerId, CancellationToken cancellationToken);
+    
+    Task<int> UnfreezeAccountsByOwnerAsync(Guid ownerId, CancellationToken cancellationToken);
 
 }
