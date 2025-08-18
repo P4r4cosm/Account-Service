@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -59,7 +60,7 @@ public class ClientBlockedPreventsDebit(CustomWebApplicationFactory<Program> fac
         // ASSERT - Шаг 3: Ждем и проверяем, что счет заморожен
         output.WriteLine("Шаг 3: Ожидание обработки события и проверка заморозки счета...");
         
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
         while (sw.Elapsed < TimeSpan.FromSeconds(10)) // Таймаут 10 секунд
         {
             await dbContext.Entry(account).ReloadAsync();

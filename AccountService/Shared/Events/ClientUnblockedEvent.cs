@@ -9,11 +9,12 @@ namespace AccountService.Shared.Events;
 /// </summary>
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]  // ReSharper предупреждает об отсутствии использования, но свойства нужны для сериализации через System.Text.Json.
 // ReSharper disable once ClassNeverInstantiated.Global 
+[RoutingKey("client.unblocked")]
 public class ClientUnblockedEvent
 {
     /// <summary>
     /// Уникальный идентификатор клиента, чьи счета необходимо разблокировать.
     /// </summary>
     [JsonPropertyName("clientId")]
-    public Guid ClientId { get; set; }
+    public Guid ClientId { get; init; }
 }

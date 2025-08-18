@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
@@ -29,8 +30,12 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         // Этот метод вызывается при построении приложения.
         // Здесь мы заменяем реальные сервисы и конфигурацию на тестовые.
         builder.UseEnvironment("Testing");
+        
+       
         builder.ConfigureTestServices(services =>
         {
+            
+           
             // Удаляем зарегистрированный DbContext, чтобы подменить его
             services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
 
@@ -39,6 +44,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             {
                 options.UseNpgsql(_dbContainer.GetConnectionString());
             });
+            
 
             // То же самое для RabbitMQ: подменяем IConnection
             services.RemoveAll<IConnection>();
@@ -52,6 +58,12 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             };
             var connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
             services.AddSingleton(connection);
+        });
+        builder.ConfigureLogging(loggingBuilder =>
+        {
+            // 1. Полностью удаляем всех провайдеров логирования,
+            //    включая Serilog, настроенный в Program.cs
+            loggingBuilder.ClearProviders();
         });
     }
 

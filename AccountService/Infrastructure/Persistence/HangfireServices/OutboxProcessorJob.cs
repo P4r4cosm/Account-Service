@@ -13,7 +13,7 @@ public class OutboxProcessorJob(
     ILogger<OutboxProcessorJob> logger)
 {
     // Внедряем зависимости напрямую через конструктор
-    
+
     private const int BatchSize = 20;
 
     // Этот публичный метод будет вызываться Hangfire
@@ -21,7 +21,7 @@ public class OutboxProcessorJob(
     {
         logger.LogInformation("Запуск задачи обработки сообщений из Outbox...");
         var token = cancellationToken.ShutdownToken;
-        var messages = await outboxRepository.GetUnprocessedMessagesAsync(BatchSize ,token);
+        var messages = await outboxRepository.GetUnprocessedMessagesAsync(BatchSize, token);
 
         if (messages.Count == 0)
         {
@@ -39,7 +39,10 @@ public class OutboxProcessorJob(
                 var envelope = JsonSerializer.Deserialize<EventEnvelope<object>>(message.Payload);
                 eventId = envelope?.EventId.ToString() ?? "N/A";
             }
-            catch (JsonException) { /* Игнорируем, если payload невалидный */ }
+            catch (JsonException)
+            {
+                /* Игнорируем, если payload невалидный */
+            }
 
             // Создаем контекст логирования для ОДНОГО сообщения
             using (logger.BeginScope(new Dictionary<string, object>
@@ -53,9 +56,10 @@ public class OutboxProcessorJob(
                 try
                 {
                     logger.LogInformation("Начинается публикация сообщения из Outbox.");
-                    
-                    // Вызываем publisher, который теперь будет писать логи в нашем контексте
+
+
                     await publisher.PublishAsync(message, token);
+
 
                     message.ProcessedAt = DateTime.UtcNow;
                     outboxRepository.Update(message);
@@ -68,7 +72,14 @@ public class OutboxProcessorJob(
             }
         }
 
-        await unitOfWork.SaveChangesAsync(token);
-        logger.LogInformation("Обработка {MessageCount} сообщений из Outbox успешно завершена.", messages.Count);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(token);
+            logger.LogInformation("Обработка {MessageCount} сообщений из Outbox успешно завершена.", messages.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogInformation("Возникла ошибка при попытке сохранить сообщения {ex.Message}",ex.Message);
+        }
     }
 }

@@ -163,11 +163,7 @@ public class Program
 
         builder.Services.AddAllHealthChecks(builder.Configuration);
 
-        builder.Services.AddHealthChecksUI(options =>
-            {
-                options.AddHealthCheckEndpoint("Сервис Счетов (Account Service)", "/health/ready");
-                options.SetEvaluationTimeInSeconds(10);
-            })
+        builder.Services.AddHealthChecksUI()
             .AddInMemoryStorage();
 
         // CORS
@@ -187,8 +183,7 @@ public class Program
                 options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
             }));
 
-        // 2. Добавление фонового обработчика HangFire
-        builder.Services.AddHangfireServer();
+       
 
         // Auth & Authorization
         if (builder.Environment.IsEnvironment("Testing"))
@@ -208,7 +203,10 @@ public class Program
             // стандартную JWT Bearer аутентификацию и авторизацию.
             builder.Services.AddAuthenticationBearer(builder.Configuration);
             builder.Services.AddAuthorization();
+            // 2. Добавление фонового обработчика HangFire
+            builder.Services.AddHangfireServer();
         }
+        
 
         // FluentValidation
         ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;

@@ -84,8 +84,7 @@ public class RabbitMqMessagePublisher : IMessagePublisher
                     _logger.LogError(
                         "Критическая ошибка: не удалось десериализовать сообщение из Outbox с Id: {MessageId}",
                         message.Id);
-
-                    return;
+                    throw new JsonException($"Не удалось десериализовать Payload для OutboxMessage с Id: {message.Id}");
                 }
 
 

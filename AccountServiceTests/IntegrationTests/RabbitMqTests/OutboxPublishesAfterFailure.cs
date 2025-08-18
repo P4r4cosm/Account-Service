@@ -106,7 +106,7 @@ public class OutboxPublishesAfterFailure(CustomWebApplicationFactory<Program> fa
         });
 
 
-        var tcs = new TaskCompletionSource<BasicDeliverEventArgs>();
+        var tcs = new TaskCompletionSource<string>();
         var listenerConnectionFactory = new ConnectionFactory
         {
             HostName = factory.RabbitMqContainer.Hostname, Port = factory.RabbitMqContainer.GetMappedPublicPort(5672),
@@ -114,7 +114,7 @@ public class OutboxPublishesAfterFailure(CustomWebApplicationFactory<Program> fa
         };
         await using var listenerConnection = await listenerConnectionFactory.CreateConnectionAsync();
         await using var channel = await listenerConnection.CreateChannelAsync();
-        await channel.QueueDeclareAsync("account.crm.test", durable: true, exclusive: false, autoDelete: false);
+        await channel.QueueDeclareAsync("account.crm.test", durable: false, exclusive: true, autoDelete: true);
         await channel.QueueBindAsync("account.crm.test", "account.events", "account.opened");
 
         var consumer = new AsyncEventingBasicConsumer(channel);
@@ -128,13 +128,13 @@ public class OutboxPublishesAfterFailure(CustomWebApplicationFactory<Program> fa
             try
             {
                 // Пытаемся десериализовать сообщение как наше событие
-                var receivedEvent = JsonSerializer.Deserialize<EventEnvelope<AccountOpenedEvent>>(message);
+                var receivedEvent = JsonSerializer.Deserialize<EventEnvelope<object>>(message);
 
                 // Если это наше событие и ID совпадает, завершаем задачу
                 if (receivedEvent != null && receivedEvent.EventId == eventId)
                 {
                     output.WriteLine($"!!! Пойман правильный EventId: {receivedEvent.EventId}. Обрабатываем.");
-                    tcs.TrySetResult(ea);
+                    tcs.TrySetResult(message);
                 }
                 else
                 {
@@ -152,25 +152,27 @@ public class OutboxPublishesAfterFailure(CustomWebApplicationFactory<Program> fa
 
         await channel.BasicConsumeAsync(queue: "account.crm.test", autoAck: true, consumer: consumer);
 
-        // Запускаем обработчик Outbox (без изменений)
+        // Запускаем обработчик Outbox
         await using (var successScope = factoryAfterRestart.Services.CreateAsyncScope())
         {
             var outboxProcessor = successScope.ServiceProvider.GetRequiredService<OutboxProcessorJob>();
             await outboxProcessor.ProcessOutboxMessagesAsync(new JobCancellationToken(false));
         }
 
-        // Ждем получения сообщения (без изменений)
+        // Ждем получения сообщения 
         var receivedMessageTask = tcs.Task;
         var completedTask =
             await Task.WhenAny(receivedMessageTask,
                 Task.Delay(TimeSpan.FromSeconds(15)));
         completedTask.Should().Be(receivedMessageTask, "ожидаемое сообщение должно быть получено из очереди");
 
-        var deliveryArgs = await receivedMessageTask;
-        var receivedPayload = Encoding.UTF8.GetString(deliveryArgs.Body.ToArray());
+        var receivedPayload = await receivedMessageTask; 
+        
         output.WriteLine($"Получено и обработано финальное сообщение: {receivedPayload}");
 
-        // Финальные проверки (без изменений)
+
+        
+        
         var receivedEnvelope = JsonSerializer.Deserialize<EventEnvelope<AccountOpenedEvent>>(receivedPayload);
         receivedEnvelope.Should().NotBeNull();
         receivedEnvelope.EventId.Should().Be(eventId);

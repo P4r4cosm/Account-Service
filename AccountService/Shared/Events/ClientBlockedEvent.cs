@@ -7,6 +7,7 @@ namespace AccountService.Shared.Events;
 /// сигнализирующее о необходимости заблокировать все расходные операции для клиента.
 /// Routing Key: `client.blocked`
 /// </summary>
+[RoutingKey("client.blocked")]
 public class ClientBlockedEvent
 {
     /// <summary>
