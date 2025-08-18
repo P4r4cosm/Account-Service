@@ -142,7 +142,7 @@
     ```bash
     git clone https://github.com/P4r4cosm/Account-Service.git
     cd Account-Service
-     git checkout feature/account-service-postgres-migration-and-tests  
+    git checkout feature/account-service-postgres-migration-and-tests  
     ```
 
 2.  **Откройте решение в Visual Studio 2022:**
@@ -189,13 +189,14 @@ dotnet test AccountService.sln --collect:"XPlat Code Coverage" --results-directo
 reportgenerator "-reports:./coverage/**/coverage.cobertura.xml" "-targetdir:./coverage/report" "-reporttypes:Html"
 ``` 
 Тест отчёта будет расположен по пути `coverage/report/index.html`
-<img width="2091" height="1427" alt="image" src="https://github.com/user-attachments/assets/2e81135c-b1f6-46c6-b01d-23be70601df7" />
+<img width="2162" height="1241" alt="image" src="https://github.com/user-attachments/assets/41c991c1-09be-4a3c-a0ac-5d5a35a44ff2" />
+
 
 
 ## 📁 API Эндпоинты
 
-После запуска проекта вся интерактивная документация с примерами доступна по корневому адресу.
-
+После запуска проекта вся интерактивная документация с примерами доступна по адресу `/swagger`.
+### Основные методы
 | Метод  | URL                                                      | Описание                                 |
 | :----- |:---------------------------------------------------------|:-----------------------------------------|
 | `POST` | `/api/accounts`                                          | Создать новый счёт                       |
