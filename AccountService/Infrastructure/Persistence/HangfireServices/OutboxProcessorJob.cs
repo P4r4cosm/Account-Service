@@ -15,6 +15,7 @@ public class OutboxProcessorJob(
     // Внедряем зависимости напрямую через конструктор
 
     private const int BatchSize = 20;
+    private const int MaxRetries = 5; // Максимальное количество попыток для одного сообщения
 
     // Этот публичный метод будет вызываться Hangfire
     public async Task ProcessOutboxMessagesAsync(IJobCancellationToken cancellationToken)
@@ -62,13 +63,32 @@ public class OutboxProcessorJob(
 
 
                     message.ProcessedAt = DateTime.UtcNow;
-                    outboxRepository.Update(message);
+                    message.Error = null; 
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Ошибка публикации сообщения. Hangfire выполнит повтор.");
-                    throw;
+                    // Ошибка! Управляем состоянием сообщения самостоятельно.
+                    message.RetryCount++;
+                    message.Error = ex.ToString(); // Записываем полную информацию об ошибке
+
+                    if (message.RetryCount > MaxRetries)
+                    {
+                        // Это "ядовитое" сообщение. Перемещаем в "мертвые".
+                        message.ProcessedAt = DateTime.UtcNow; // Убираем из очереди на обработку
+                        message.Error = $"FATAL: Moved to dead-letter after {message.RetryCount} retries. Last error: {ex.Message}";
+                        
+                        logger.LogCritical(ex, 
+                            "Достигнут лимит ({MaxRetries}) попыток для сообщения. Сообщение перемещено в карантин (dead-letter).", 
+                            MaxRetries);
+                    }
+                    else
+                    {
+                        // Обычная ошибка, просто логируем. Попробуем в следующий раз.
+                        logger.LogError(ex, "Ошибка публикации сообщения. Попытка #{RetryCount} из {MaxRetries} не удалась.", 
+                            message.RetryCount, MaxRetries);
+                    }
                 }
+                outboxRepository.Update(message);
             }
         }
 
@@ -79,7 +99,7 @@ public class OutboxProcessorJob(
         }
         catch (Exception ex)
         {
-            logger.LogInformation("Возникла ошибка при попытке сохранить сообщения {ex.Message}",ex.Message);
+            logger.LogInformation("Возникла ошибка при попытке сохранить сообщения {ex.Message}", ex.Message);
         }
     }
 }

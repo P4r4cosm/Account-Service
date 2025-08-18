@@ -194,9 +194,11 @@ public abstract class RabbitMqConsumerBase : BackgroundService
 
     private async Task HandleFinalFailureAsync(ulong deliveryTag, string payload, Guid messageId, string error)
     {
+        // Записываем сообщение в нашу БД-карантин. Это основное действие.
         await HandleDeadLetterAsync(null, $"Не удалось обработать после всех попыток: {error}", messageId, payload);
-        // Используем NACK, чтобы сообщить брокеру о неудаче (если настроен DLX, сообщение уйдет туда)
-        if (_channel is not null) await _channel.BasicNackAsync(deliveryTag, false, false);
+
+        // Подтверждаем (ACK) сообщение брокеру.
+        await AcknowledgeMessageAsync(deliveryTag);
     }
 
     private static bool TryValidateEnvelope(string payload, out Guid eventId)

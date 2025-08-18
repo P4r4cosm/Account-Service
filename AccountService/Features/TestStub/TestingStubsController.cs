@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AccountService.Features.TestStub;
 
+/// <summary>
+/// Контроллер для тестирование AntifraudConsumer (удобной публикации событий client.blocked/unblocked).
+/// </summary>
 [ApiController]
 [Route("api/testing-stubs/clients/{clientId:guid}")]
 [ApiExplorerSettings(GroupName = "v1")] 

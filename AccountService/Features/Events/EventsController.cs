@@ -4,6 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AccountService.Features.Events;
 
+
+/// <summary>
+/// Контроллер для документирования событий.
+/// </summary>
 [ApiController]
 [Route("api/events-documentation")]
 [Produces("application/json")]
